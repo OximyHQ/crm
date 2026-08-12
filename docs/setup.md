@@ -45,6 +45,16 @@ AGENT_BRIDGE_SECRET="$(openssl rand -base64 32)"
 | `401` | The two processes hold different secrets, **or** `passThroughEnv` in `apps/app/turbo.json` / `apps/agent/turbo.json` is missing the pair (Turbo is strict-env) |
 | `502` | Agent not running, or `AGENT_URL` wrong |
 
+## Remote MCP
+
+The CRM serves its OAuth-protected MCP at `<APP_URL>/api/mcp`. No extra secret
+or environment variable is required. Better Auth stores OAuth clients, consent,
+access tokens, refresh tokens, and signing keys in Postgres.
+
+The MCP client discovers OAuth through the two well-known endpoints. Connect it
+to `http://localhost:3000/api/mcp` locally or the deployed app URL in production.
+The complete tool and scope contract is in `docs/mcp.md`.
+
 `localDev()` accepts any loopback request, so `curl 127.0.0.1` proves nothing about
 the bridge — send `-H 'Host: agent.example.com'`. `GET /eve/v1/info` is the whole
 inventory, including a `diagnostics` count that finds files eve silently ignored.

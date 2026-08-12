@@ -7,6 +7,13 @@ export {
 	isSlackConfigured,
 } from "./env";
 export {
+	MCP_RESOURCE_URL,
+	MCP_SCOPES,
+	OAUTH_ISSUER,
+	OAUTH_SCOPES,
+	oauthClientReference,
+} from "./oauth";
+export {
 	canChangeRole,
 	canManageConnections,
 	canManageCurrency,
