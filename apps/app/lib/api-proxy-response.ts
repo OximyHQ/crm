@@ -1,4 +1,27 @@
 import { brotliDecompressSync, gunzipSync, inflateSync } from "node:zlib";
+import { z } from "zod";
+
+const oauthAuthorizeRedirect = z.object({
+	redirect: z.literal(true),
+	url: z.string().min(1),
+});
+
+export async function browserNavigationResponse(
+	pathname: string,
+	upstream: Response,
+	headers: Headers,
+): Promise<Response | null> {
+	if (pathname !== "/api/auth/oauth2/authorize" || !upstream.ok) return null;
+
+	const redirect = oauthAuthorizeRedirect.parse(await upstream.clone().json());
+	const responseHeaders = new Headers(headers);
+	responseHeaders.set("location", redirect.url);
+	responseHeaders.delete("content-encoding");
+	responseHeaders.delete("content-length");
+	responseHeaders.delete("content-type");
+
+	return new Response(null, { status: 302, headers: responseHeaders });
+}
 
 export async function bufferedProxyResponse(
 	upstream: Response,

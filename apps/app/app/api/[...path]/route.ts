@@ -1,5 +1,8 @@
 import { connection } from "next/server";
-import { bufferedProxyResponse } from "@/lib/api-proxy-response";
+import {
+	browserNavigationResponse,
+	bufferedProxyResponse,
+} from "@/lib/api-proxy-response";
 import { API_URL } from "@/lib/env";
 
 async function handler(request: Request): Promise<Response> {
@@ -68,6 +71,13 @@ async function handler(request: Request): Promise<Response> {
 			responseHeaders.append("set-cookie", cookie);
 		}
 	}
+
+	const navigation = await browserNavigationResponse(
+		url.pathname,
+		upstream,
+		responseHeaders,
+	);
+	if (navigation) return navigation;
 
 	if (
 		upstream.headers.get("content-type")?.includes("text/event-stream") ||
