@@ -23,6 +23,8 @@ import { ResearchKeyService } from "./research-key.service";
 	],
 	exports: [
 		AgentAccessService,
+		AgentDefinitionsService,
+		AgentRunsService,
 		AgentTriggerService,
 		AgentQueueService,
 		ResearchKeyService,

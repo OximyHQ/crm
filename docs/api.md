@@ -128,6 +128,10 @@ self-hoster's admin cannot redeploy.
 
 ## tRPC is the data surface; REST is auth and health only
 
+The remote MCP endpoint is the other documented data surface. It uses existing
+CRM services for deterministic tools. It queues `AgentTask` or `AgentRun` work
+for every intelligent tool. Its OAuth and tool contract is in `docs/mcp.md`.
+
 - **One router per module**, `*.router.ts` (the codegen glob), with
   `@Router({ alias })` and `@UseMiddlewares(AuthMiddleware)`. **No `AuthMiddleware`
   means public — there is no other guard.**

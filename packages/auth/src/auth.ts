@@ -1,12 +1,15 @@
+import { oauthProvider } from "@better-auth/oauth-provider";
 import { sso } from "@better-auth/sso";
 import { db } from "@crm/db";
 import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError } from "better-auth/api";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
+import { jwt } from "better-auth/plugins/jwt";
 import { organization } from "better-auth/plugins/organization";
 import { AUTH_COOKIE_PREFIX } from "./cookies";
 import { env } from "./env";
+import { MCP_RESOURCE_URL, OAUTH_SCOPES, oauthClientReference } from "./oauth";
 import { ensureWorkspaceMembership } from "./organization";
 import {
 	GOOGLE_PROVIDER_ID,
@@ -116,6 +119,23 @@ export const auth = betterAuth({
 	},
 
 	plugins: [
+		jwt(),
+		oauthProvider({
+			loginPage: "/sign-in",
+			consentPage: "/consent",
+			scopes: [...OAUTH_SCOPES],
+			validAudiences: [MCP_RESOURCE_URL],
+			allowDynamicClientRegistration: true,
+			allowUnauthenticatedClientRegistration: true,
+			clientRegistrationDefaultScopes: [...OAUTH_SCOPES],
+			clientRegistrationAllowedScopes: [...OAUTH_SCOPES],
+			clientReference: oauthClientReference,
+			customAccessTokenClaims: ({ user, referenceId }) => ({
+				...(user ? { crm_user_id: user.id } : {}),
+				...(referenceId ? { crm_workspace_id: referenceId } : {}),
+			}),
+			silenceWarnings: { oauthAuthServerConfig: true },
+		}),
 		...(slackOAuth
 			? [
 					genericOAuth({
