@@ -170,6 +170,23 @@ describe("proxy", () => {
 		expect(redirectedTo(await proxy(request("/sign-in")))).toBeNull();
 	});
 
+	it("publishes OAuth discovery without a CRM session", async () => {
+		marketing(undefined);
+
+		expect(
+			redirectedTo(
+				await proxy(request("/.well-known/oauth-protected-resource/api/mcp")),
+			),
+		).toBeNull();
+		expect(
+			redirectedTo(
+				await proxy(
+					request("/.well-known/oauth-authorization-server/api/auth"),
+				),
+			),
+		).toBeNull();
+	});
+
 	it("never aims a redirect at the sign-in page itself", async () => {
 		marketing(undefined);
 		setup({ onboarded: false, configured: false });
