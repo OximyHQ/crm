@@ -27,6 +27,7 @@ const ENTRY_SELECT = {
 	type: true,
 	subject: true,
 	body: true,
+	granolaUrl: true,
 	occurredAt: true,
 	dueAt: true,
 	completedAt: true,

@@ -110,6 +110,36 @@ export class AgentTriggerService {
 		await this.queueSlackChannelJoin(channelId, channelName);
 	}
 
+	async granolaBackfillRequested(): Promise<void> {
+		await this.enqueue(
+			{
+				kind: "granola-backfill",
+				reason: "Import every meeting in the connected Granola folder",
+				priority: PRIORITY.granolaBackfill,
+				budget: 1,
+			},
+			true,
+		);
+	}
+
+	async granolaNoteRequested(input: {
+		noteId: string;
+		eventId: string;
+		eventType: string;
+	}): Promise<void> {
+		await this.enqueue(
+			{
+				kind: "granola-note",
+				reason: `File Granola note ${input.noteId}`,
+				priority: PRIORITY.granolaNote,
+				budget: 1,
+				subject: { path: ["noteId"], value: input.noteId },
+				payload: input,
+			},
+			true,
+		);
+	}
+
 	async withTasks<Result>(
 		work: (
 			tx: Prisma.TransactionClient,
@@ -409,6 +439,7 @@ export class AgentTriggerService {
 						budget: task.budget,
 						dueAt: new Date(),
 						...(task.payload ? { payload: task.payload } : {}),
+						...(task.subject ? { subject: task.subject.value } : {}),
 					},
 				});
 				return true;

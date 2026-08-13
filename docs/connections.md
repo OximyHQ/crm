@@ -171,6 +171,29 @@ week or two. So every connection surface leads with liveness, not configuration:
 
 An automation you cannot see rot in is one nobody will own.
 
+## Granola files Customer Calls as meeting activities
+
+Granola is an inbound connection. It sends nothing from the CRM to Granola.
+An owner or admin provides an API key and the Customer Calls folder visibility.
+The agent lists every accessible folder and requires one exact `Customer Calls`
+name. It registers a folder-scoped webhook and stores its signing secret. The
+API verifies Standard Webhooks signatures before it queues a `granola-note`
+task.
+
+The agent fetches each note from Granola and parses the response at that
+boundary. It matches attendee emails to CRM contacts. It first looks for one
+open deal connected to those contacts. It then looks for one open deal at the
+matched company. It never chooses between multiple open deals.
+
+One clear deal receives the meeting activity. Multiple deals produce a company
+activity with `granolaMatchStatus = needs_review` and no deal. Repeated webhook
+events update the activity identified by `granolaNoteId`. Calendar sync never
+overwrites a Granola summary after the two sources meet on one activity.
+
+Connecting queues a full folder backfill. The list request follows every cursor
+and queues one task for each unique note ID. The connection page shows imported,
+waiting, review, last-success, and last-error counts.
+
 ## Irreversible things are bounded in writing
 
 Anything that messages a customer states its own limits next to the switch:

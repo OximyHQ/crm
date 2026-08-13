@@ -26,6 +26,10 @@ import {
 } from "../lib/dispatch";
 import { DISPATCH } from "../lib/dispatch-config";
 import { settle } from "../lib/enrichment";
+import {
+	createGranolaWebhook,
+	deleteGranolaWebhook,
+} from "../lib/granola-client";
 import { finishRun } from "../lib/run-runtime";
 import { attribute } from "../lib/session-purpose";
 import { createSlackChannel } from "../lib/slack-membership";
@@ -199,6 +203,60 @@ export default defineChannel({
 			}
 
 			return Response.json(await verifyKey(apiKey));
+		}),
+
+		POST("/internal/crm/granola/connect", async (request) => {
+			if (!authorised(request)) {
+				return new Response("Unauthorized", { status: 401 });
+			}
+
+			const parsed = schemas.granola.connectPayload.safeParse(
+				await request.json().catch(() => null),
+			);
+			if (!parsed.success) {
+				return Response.json(
+					{ error: "The Granola connection details are invalid." },
+					{ status: 400 },
+				);
+			}
+
+			try {
+				return Response.json(await createGranolaWebhook(parsed.data));
+			} catch (error) {
+				return Response.json(
+					{ error: error instanceof Error ? error.message : String(error) },
+					{ status: 422 },
+				);
+			}
+		}),
+
+		POST("/internal/crm/granola/disconnect", async (request) => {
+			if (!authorised(request)) {
+				return new Response("Unauthorized", { status: 401 });
+			}
+
+			const parsed = schemas.granola.disconnectPayload.safeParse(
+				await request.json().catch(() => null),
+			);
+			if (!parsed.success) {
+				return Response.json(
+					{ error: "The Granola connection details are invalid." },
+					{ status: 400 },
+				);
+			}
+
+			try {
+				await deleteGranolaWebhook(
+					parsed.data.apiKey,
+					parsed.data.webhookEndpointId,
+				);
+				return Response.json({ disconnected: true });
+			} catch (error) {
+				return Response.json(
+					{ error: error instanceof Error ? error.message : String(error) },
+					{ status: 422 },
+				);
+			}
 		}),
 	],
 

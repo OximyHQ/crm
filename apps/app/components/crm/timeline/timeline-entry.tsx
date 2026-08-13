@@ -152,7 +152,19 @@ export function TimelineEntry({
 						isAllDay={entry.calendarEvent.isAllDay}
 						attendeeCount={entry.calendarEvent.attendeeCount}
 						conferenceUrl={entry.calendarEvent.conferenceUrl}
+						granolaUrl={entry.granolaUrl}
 					/>
+				) : null}
+
+				{!entry.calendarEvent && entry.granolaUrl ? (
+					<a
+						href={entry.granolaUrl}
+						target="_blank"
+						rel="noreferrer"
+						className="w-fit text-muted-foreground text-xs underline underline-offset-3 hover:text-foreground"
+					>
+						Open in Granola
+					</a>
 				) : null}
 
 				{entry.emailThread ? (

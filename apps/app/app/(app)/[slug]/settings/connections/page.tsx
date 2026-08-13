@@ -1,3 +1,4 @@
+import DocumentAudio from "@carbon/icons-react/es/DocumentAudio";
 import GoogleLogo from "@crm/ui/components/brand-logos/google";
 import MicrosoftLogo from "@crm/ui/components/brand-logos/microsoft";
 import SlackLogo from "@crm/ui/components/brand-logos/slack";
@@ -30,10 +31,11 @@ async function ConnectionsSettingsPageContent({
 	const [{ slug }, query] = await Promise.all([params, searchParams]);
 	const queryClient = getServerQueryClient();
 	const trpc = getServerTrpc();
-	const [google, microsoft, slack] = await Promise.all([
+	const [google, microsoft, slack, granola] = await Promise.all([
 		queryClient.fetchQuery(trpc.google.status.queryOptions()),
 		queryClient.fetchQuery(trpc.microsoft.status.queryOptions()),
 		queryClient.fetchQuery(trpc.slack.status.queryOptions()),
+		queryClient.fetchQuery(trpc.granola.status.queryOptions()),
 	]);
 	const rows = [
 		...(google.linked
@@ -71,6 +73,21 @@ async function ConnectionsSettingsPageContent({
 						sends: "Nothing yet",
 						href: `/${slug}/settings/connections/microsoft`,
 						logo: MicrosoftLogo,
+					},
+				]
+			: []),
+		...(granola.connected
+			? [
+					{
+						name: "Granola",
+						status:
+							granola.pending > 0
+								? `Connected · ${granola.pending} waiting`
+								: "Connected",
+						bringsIn: "Customer call summaries and attendees",
+						sends: "Nothing",
+						href: `/${slug}/settings/connections/granola`,
+						logo: DocumentAudio,
 					},
 				]
 			: []),
@@ -126,6 +143,12 @@ async function ConnectionsSettingsPageContent({
 							name="Slack"
 							description="Let deployed agents notify approved channels and people"
 							href={`/${slug}/settings/connections/slack`}
+						/>
+						<StarterRow
+							logo={DocumentAudio}
+							name="Granola"
+							description="File customer call summaries against existing deals"
+							href={`/${slug}/settings/connections/granola`}
 						/>
 						<StarterRow
 							logo={MicrosoftLogo}

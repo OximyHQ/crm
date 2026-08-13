@@ -376,6 +376,10 @@ export class CalendarSyncService {
 		},
 	): Promise<void> {
 		const body = summary.location ? `Location: ${summary.location}` : null;
+		const existing = await this.db.activity.findUnique({
+			where: { calendarEventId },
+			select: { granolaNoteId: true },
+		});
 
 		const activity = await this.db.activity.upsert({
 			where: { calendarEventId },
@@ -392,7 +396,7 @@ export class CalendarSyncService {
 			},
 			update: {
 				subject: summary.title,
-				body,
+				...(existing?.granolaNoteId ? {} : { body }),
 				occurredAt: summary.startsAt,
 				companyId: summary.companyId,
 				contactId: summary.contactId,
