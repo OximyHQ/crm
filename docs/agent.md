@@ -49,16 +49,22 @@ agent and the API both need it.
 
 | | Kinds | How | Per tick |
 | --- | --- | --- | --- |
-| **Visible** | `brand`, `portrait` | Directly — no `receive`, no model | 60, six at a time |
+| **Visible** | `brand`, `portrait`, `granola-backfill`, `granola-note` | Directly — no `receive`, no model | 60, six at a time |
 | **Research** | everything else | One eve session per row | 12 |
 
 **Neither visible kind has anything to decide**, and through a session they queued
 behind sixty LLM runs for 25 minutes (`test/lanes.integration.spec.ts`). **The row says
 what the work is; the lane only says whether it needs a conversation.**
 
-**Priority**: `brand` 900 · `portrait` 800 · `workspace` 500 · `requested` 300 ·
-`meeting` 200 · `identify` 100 · `sweep` 50 · `companyProfile` 40 · `recheck` 0. The
-top two are what a rep reads *before* deciding what to open.
+Granola tasks stay direct because their matching rules are deterministic. A
+backfill lists every note in the configured folder. A note task fetches and
+files one note. Exact attendee emails and unique open deals are the only match
+evidence. Ambiguous deals remain unassigned for review.
+
+**Priority**: `brand` 900 · `portrait` 800 · `granola-note` 750 ·
+`granola-backfill` 650 · `workspace` 500 · `requested` 300 · `meeting` 200 ·
+`identify` 100 · `sweep` 50 · `companyProfile` 40 · `recheck` 0. Brand and
+portrait tasks are what a rep reads *before* deciding what to open.
 
 **`claimDue` sorts what it claims** — Postgres does not order `UPDATE … RETURNING` by
 its sub-select's `ORDER BY`.

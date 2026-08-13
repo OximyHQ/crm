@@ -5,6 +5,7 @@ import { queueEventAgentRuns } from "./custom-agent-dispatch";
 import { settledWithin } from "./deadline";
 import { DISPATCH } from "./dispatch-config";
 import { markRunning, settle } from "./enrichment";
+import { runGranolaBackfill, runGranolaNoteTask } from "./granola-task";
 import { collapsing, runLimited } from "./pool";
 import { runPortrait } from "./portrait";
 import { runSlackChannelJoin } from "./slack-join-task";
@@ -143,6 +144,16 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 				? "Queued 1 matching agent run."
 				: `Queued ${queued} matching agent runs.`,
 		);
+		return;
+	}
+
+	if (task.kind === "granola-backfill") {
+		await completeTask(task.id, await runGranolaBackfill());
+		return;
+	}
+
+	if (task.kind === "granola-note") {
+		await completeTask(task.id, await runGranolaNoteTask(task.payload));
 		return;
 	}
 

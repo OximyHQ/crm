@@ -1,5 +1,6 @@
 "use client";
 
+import DocumentAudio from "@carbon/icons-react/es/DocumentAudio";
 import Plug from "@carbon/icons-react/es/Plug";
 import DocusignLogo from "@crm/ui/components/brand-logos/docusign";
 import GoogleLogo from "@crm/ui/components/brand-logos/google";
@@ -63,6 +64,14 @@ export function AddConnectionDialog({
 							name="Microsoft 365"
 							description="Bring in Outlook email and the people on it"
 							href={`/${slug}/settings/connections/microsoft`}
+						/>
+					) : null}
+					{!connected.includes("Granola") ? (
+						<CatalogRow
+							logo={DocumentAudio}
+							name="Granola"
+							description="Bring customer call summaries into existing deals"
+							href={`/${slug}/settings/connections/granola`}
 						/>
 					) : null}
 					<CatalogRow

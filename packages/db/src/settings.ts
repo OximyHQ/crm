@@ -125,3 +125,99 @@ export function maskKey(key: string): string {
 	const trimmed = key.trim();
 	return trimmed.length > 4 ? `••••${trimmed.slice(-4)}` : "••••";
 }
+
+export type GranolaScope = "personal" | "public";
+
+export type GranolaConnection = {
+	apiKey: string;
+	folderId: string;
+	scope: GranolaScope;
+	webhookEndpointId: string;
+	webhookSecret: string;
+	connectedAt: Date;
+};
+
+export async function readGranolaConnection(
+	db: Db,
+): Promise<GranolaConnection | null> {
+	const row = await db.appSetting.findUnique({
+		where: { id: SETTINGS_ID },
+		select: {
+			granolaApiKey: true,
+			granolaFolderId: true,
+			granolaScope: true,
+			granolaWebhookEndpointId: true,
+			granolaWebhookSecret: true,
+			granolaConnectedAt: true,
+		},
+	});
+	const scope = row?.granolaScope;
+	if (
+		!row?.granolaApiKey ||
+		!row.granolaFolderId ||
+		!row.granolaWebhookEndpointId ||
+		!row.granolaWebhookSecret ||
+		!row.granolaConnectedAt ||
+		!isGranolaScope(scope)
+	) {
+		return null;
+	}
+
+	return {
+		apiKey: row.granolaApiKey,
+		folderId: row.granolaFolderId,
+		scope,
+		webhookEndpointId: row.granolaWebhookEndpointId,
+		webhookSecret: row.granolaWebhookSecret,
+		connectedAt: row.granolaConnectedAt,
+	};
+}
+
+export async function writeGranolaConnection(
+	db: Db,
+	connection: Omit<GranolaConnection, "connectedAt">,
+): Promise<void> {
+	const fields = { ...connection, granolaConnectedAt: new Date() };
+
+	await db.appSetting.upsert({
+		where: { id: SETTINGS_ID },
+		create: {
+			id: SETTINGS_ID,
+			granolaApiKey: fields.apiKey,
+			granolaFolderId: fields.folderId,
+			granolaScope: fields.scope,
+			granolaWebhookEndpointId: fields.webhookEndpointId,
+			granolaWebhookSecret: fields.webhookSecret,
+			granolaConnectedAt: fields.granolaConnectedAt,
+		},
+		update: {
+			granolaApiKey: fields.apiKey,
+			granolaFolderId: fields.folderId,
+			granolaScope: fields.scope,
+			granolaWebhookEndpointId: fields.webhookEndpointId,
+			granolaWebhookSecret: fields.webhookSecret,
+			granolaConnectedAt: fields.granolaConnectedAt,
+			granolaLastError: null,
+		},
+	});
+}
+
+export async function clearGranolaConnection(db: Db): Promise<void> {
+	await db.appSetting.updateMany({
+		where: { id: SETTINGS_ID },
+		data: {
+			granolaApiKey: null,
+			granolaFolderId: null,
+			granolaScope: null,
+			granolaWebhookEndpointId: null,
+			granolaWebhookSecret: null,
+			granolaConnectedAt: null,
+			granolaLastSyncedAt: null,
+			granolaLastError: null,
+		},
+	});
+}
+
+function isGranolaScope(value: unknown): value is GranolaScope {
+	return value === "personal" || value === "public";
+}

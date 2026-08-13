@@ -1,8 +1,9 @@
 import type { ZodType, z } from "zod";
 import * as agents from "./agents";
+import * as granola from "./granola";
 import * as slack from "./slack";
 
-export const schemas = { agents, slack } as const;
+export const schemas = { agents, granola, slack } as const;
 
 export type {
 	Handoff,
