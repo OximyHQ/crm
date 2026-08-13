@@ -15,7 +15,7 @@ export async function GET() {
 			resource: MCP_RESOURCE_URL,
 			resource_name: "Oximy CRM",
 			authorization_servers: [issuer],
-			scopes_supported: [MCP_SCOPES.read, MCP_SCOPES.write, MCP_SCOPES.agents],
+			scopes_supported: Object.values(MCP_SCOPES),
 			bearer_methods_supported: ["header"],
 		},
 		{
