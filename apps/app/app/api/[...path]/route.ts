@@ -1,4 +1,5 @@
 import { connection } from "next/server";
+import { bufferedRequestBody } from "@/lib/api-proxy-request";
 import {
 	browserNavigationResponse,
 	bufferedProxyResponse,
@@ -27,15 +28,14 @@ async function handler(request: Request): Promise<Response> {
 		headers.delete(header);
 	}
 
-	const init: RequestInit & { duplex?: "half" } = {
+	const init: RequestInit = {
 		method: request.method,
 		headers,
 		redirect: "manual",
 	};
 
 	if (request.method !== "GET" && request.method !== "HEAD") {
-		init.body = request.body;
-		init.duplex = "half";
+		init.body = await bufferedRequestBody(request);
 	}
 
 	let upstream: Response;
