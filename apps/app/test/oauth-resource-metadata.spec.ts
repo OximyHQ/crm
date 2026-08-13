@@ -24,4 +24,6 @@ it("publishes the issuer returned by the OAuth service", async () => {
 	expect(metadata.authorization_servers).toEqual([
 		"https://crm.oximy.com/api/auth",
 	]);
+	expect(metadata.scopes_supported).toContain("crm:delete");
+	expect(metadata.scopes_supported).toContain("crm:admin");
 });
