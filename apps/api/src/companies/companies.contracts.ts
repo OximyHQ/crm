@@ -20,7 +20,7 @@ export const companyCreateInput = z.object({
 
 export type CompanyCreateInput = z.infer<typeof companyCreateInput>;
 
-const companyUpdateInput = z.object({
+export const companyUpdateInput = z.object({
 	name: z.string().trim().min(1).optional(),
 	domain: z.string().optional(),
 	website: z.string().optional(),

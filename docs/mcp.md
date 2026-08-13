@@ -15,8 +15,10 @@ authorization code with PKCE S256, consent, and refresh tokens.
 The protected resource publishes these scopes:
 
 - `crm:read` permits CRM search and record reads.
-- `crm:write` permits company, contact, and deal writes.
-- `crm:agents` permits Eve research and custom agent runs.
+- `crm:write` permits record, activity, task, and relationship changes.
+- `crm:agents` permits research and full custom-agent management.
+- `crm:delete` permits permanent record and agent deletion.
+- `crm:admin` permits custom-field management for workspace administrators.
 - `offline_access` permits refresh tokens.
 
 The server validates the exact `/api/mcp` audience. It also verifies active
@@ -35,9 +37,24 @@ workspace membership on every MCP connection.
 
 ## Tools
 
-Read access provides CRM search, lists, records, users, and custom fields.
-Write access provides company, contact, deal, stage, and deal-contact changes.
-Agent access queues research or starts a deployed custom agent through Eve.
+Read access provides CRM search, records, timelines, tasks, dashboard totals,
+users, and custom fields.
+
+Write access provides record creation, updates, bulk changes, enrichment,
+ownership, company moves, primary contacts, deal contacts, activities, and task
+completion.
+
+Agent access provides agent configuration, history, activity, files, guided
+creation, revision, deployment, lifecycle management, runs, retries, and
+cancellation. Agent creation uses the same builder and review flow as the app.
+
+Delete access provides individual and bulk record deletion. It also permits
+agent deletion when the token has agent access.
+
+Administrative access provides custom-field creation, updates, ordering,
+archival, restoration, and backfills. The server also requires an owner or
+administrator workspace role. Permanent field deletion also requires delete
+access.
 
 The MCP has no import tool. Connected systems create and update records through
 the normal tools. This path preserves CRM validation, events, and agent queues.

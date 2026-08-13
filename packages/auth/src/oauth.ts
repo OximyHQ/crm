@@ -5,6 +5,8 @@ export const MCP_SCOPES = {
 	read: "crm:read",
 	write: "crm:write",
 	agents: "crm:agents",
+	delete: "crm:delete",
+	admin: "crm:admin",
 } as const;
 
 export const OAUTH_SCOPES = [
@@ -15,6 +17,8 @@ export const OAUTH_SCOPES = [
 	MCP_SCOPES.read,
 	MCP_SCOPES.write,
 	MCP_SCOPES.agents,
+	MCP_SCOPES.delete,
+	MCP_SCOPES.admin,
 ] as const;
 
 export const OAUTH_ISSUER = new URL("/api/auth", env.apiUrl).toString();

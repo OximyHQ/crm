@@ -4,6 +4,8 @@ export type McpToolGroups = {
 	read: boolean;
 	write: boolean;
 	agents: boolean;
+	delete: boolean;
+	admin: boolean;
 };
 
 export function toolGroupsFor(value: unknown): McpToolGroups {
@@ -23,5 +25,7 @@ export function toolGroupsFor(value: unknown): McpToolGroups {
 		read: scopes.has(MCP_SCOPES.read),
 		write: scopes.has(MCP_SCOPES.write),
 		agents: scopes.has(MCP_SCOPES.agents),
+		delete: scopes.has(MCP_SCOPES.delete),
+		admin: scopes.has(MCP_SCOPES.admin),
 	};
 }

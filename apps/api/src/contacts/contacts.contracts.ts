@@ -23,7 +23,7 @@ export const contactCreateInput = z.object({
 
 export type ContactCreateInput = z.infer<typeof contactCreateInput>;
 
-const contactUpdateInput = z.object({
+export const contactUpdateInput = z.object({
 	firstName: z.string().trim().min(1).optional(),
 	lastName: z.string().optional(),
 	email: z.string().optional(),
