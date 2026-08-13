@@ -6,6 +6,7 @@ import { AllowAnonymous } from "@thallesp/nestjs-better-auth";
 import type { Request, Response } from "express";
 import type { JWTPayload } from "jose";
 import { McpService } from "./mcp.service";
+import { readMcpRequestBody } from "./mcp-request";
 
 const verificationOptions = {
 	jwksUrl: `${OAUTH_ISSUER}/jwks`,
@@ -55,10 +56,23 @@ export class McpController {
 		const transport = new StreamableHTTPServerTransport({
 			sessionIdGenerator: undefined,
 		});
+		let parsedBody: unknown;
+		if (request.method === "POST") {
+			try {
+				parsedBody = await readMcpRequestBody(request);
+			} catch {
+				response.status(400).json({
+					jsonrpc: "2.0",
+					error: { code: -32700, message: "Parse error: Invalid JSON" },
+					id: null,
+				});
+				return;
+			}
+		}
 
 		await server.connect(transport);
 		try {
-			await transport.handleRequest(request, response);
+			await transport.handleRequest(request, response, parsedBody);
 		} finally {
 			await server.close();
 		}
