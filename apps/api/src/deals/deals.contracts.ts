@@ -50,7 +50,7 @@ export const dealCreateInput = z.object({
 
 export type DealCreateInput = z.infer<typeof dealCreateInput>;
 
-const dealUpdateInput = z.object({
+export const dealUpdateInput = z.object({
 	name: z.string().trim().min(1).optional(),
 	description: z.string().nullable().optional(),
 	companyId: z.string().optional(),

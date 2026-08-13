@@ -8,14 +8,18 @@ describe("MCP scopes", () => {
 			read: true,
 			write: false,
 			agents: false,
+			delete: false,
+			admin: false,
 		});
 	});
 
 	it("reads scopes from OAuth JWT claims", () => {
-		expect(toolGroupsFor("crm:read crm:agents")).toEqual({
+		expect(toolGroupsFor("crm:read crm:agents crm:delete crm:admin")).toEqual({
 			read: true,
 			write: false,
 			agents: true,
+			delete: true,
+			admin: true,
 		});
 	});
 });
