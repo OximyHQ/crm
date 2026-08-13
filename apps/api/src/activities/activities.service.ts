@@ -180,6 +180,45 @@ export class ActivitiesService {
 		return serializeEntry(updated);
 	}
 
+	async delete(id: string) {
+		const deleted = await this.db.$transaction(async (tx) => {
+			const activity = await tx.activity.findUnique({
+				where: { id },
+				select: {
+					id: true,
+					type: true,
+					subject: true,
+					companyId: true,
+					contactId: true,
+					dealId: true,
+				},
+			});
+
+			if (!activity) {
+				throw new NotFoundException(`No activity with id ${id}.`);
+			}
+
+			const targets = await this.stamp.targetsOf({ id }, tx);
+			await tx.activity.delete({ where: { id } });
+
+			return { activity, targets };
+		});
+
+		await this.stamp.recomputeAfterDelete(deleted.targets, deleted.activity);
+
+		this.logger.log({
+			message: "Activity deleted",
+			activityId: deleted.activity.id,
+			type: deleted.activity.type,
+		});
+
+		return {
+			id: deleted.activity.id,
+			type: deleted.activity.type,
+			subject: deleted.activity.subject,
+		};
+	}
+
 	async myTasks(input: MyTasksInput, actingUserId: string) {
 		const now = new Date();
 		const where: Prisma.ActivityWhereInput = {

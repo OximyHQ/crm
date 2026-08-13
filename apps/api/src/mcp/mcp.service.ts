@@ -581,6 +581,16 @@ export class McpService {
 
 	private registerDeleteTools(server: McpServer): void {
 		server.registerTool(
+			"delete_activity",
+			{
+				description: "Delete one CRM activity.",
+				inputSchema: id,
+				annotations: { readOnlyHint: false, destructiveHint: true },
+			},
+			async ({ id: activityId }) =>
+				result(await this.activities.delete(activityId)),
+		);
+		server.registerTool(
 			"delete_company",
 			{
 				description: "Delete one CRM company.",
