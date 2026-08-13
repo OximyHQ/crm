@@ -26,6 +26,7 @@ describe("CRM MCP tools", () => {
 		expect(agents).not.toContain("delete_agent");
 
 		const destructive = await toolNames("crm:delete crm:agents");
+		expect(destructive).toContain("delete_activity");
 		expect(destructive).toContain("delete_company");
 		expect(destructive).toContain("bulk_delete_contacts");
 		expect(destructive).toContain("delete_agent");
@@ -71,6 +72,10 @@ describe("CRM MCP tools", () => {
 			name: "delete_contact",
 			arguments: { id: "contact-1" },
 		});
+		await client.callTool({
+			name: "delete_activity",
+			arguments: { id: "activity-1" },
+		});
 
 		expect(
 			calls.filter(
@@ -100,6 +105,11 @@ describe("CRM MCP tools", () => {
 			service: "contacts",
 			method: "delete",
 			args: ["contact-1"],
+		});
+		expect(calls).toContainEqual({
+			service: "activities",
+			method: "delete",
+			args: ["activity-1"],
 		});
 		const builderCall = calls.find(
 			(call) =>

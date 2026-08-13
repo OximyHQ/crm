@@ -48,8 +48,8 @@ Agent access provides agent configuration, history, activity, files, guided
 creation, revision, deployment, lifecycle management, runs, retries, and
 cancellation. Agent creation uses the same builder and review flow as the app.
 
-Delete access provides individual and bulk record deletion. It also permits
-agent deletion when the token has agent access.
+Delete access provides activity deletion and individual or bulk record
+deletion. It also permits agent deletion when the token has agent access.
 
 Administrative access provides custom-field creation, updates, ordering,
 archival, restoration, and backfills. The server also requires an owner or
