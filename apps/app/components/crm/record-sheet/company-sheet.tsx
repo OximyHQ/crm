@@ -16,6 +16,7 @@ import {
 import { Icon } from "@crm/ui/components/icon";
 import { PersonAvatar } from "@crm/ui/components/person-avatar";
 import { SimpleTable, SimpleTableRow } from "@crm/ui/components/simple-table";
+import { Spinner } from "@crm/ui/components/spinner";
 import { TableCell } from "@crm/ui/components/table";
 import {
 	Tooltip,
@@ -54,6 +55,7 @@ import {
 	type DetailSheetTab,
 } from "@/components/detail-sheet";
 import { LocalDay } from "@/components/local-date-time";
+import { companyContactsEmptyState } from "@/lib/company-contacts";
 import { OPEN_STAGES } from "@/lib/deal-stage";
 import { ENRICHMENT_POLL_MS, isEnriching } from "@/lib/enrichment-status";
 import { savingField } from "@/lib/pending-field";
@@ -151,6 +153,9 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 	});
 
 	const company = query.data;
+	const enrichmentRunning = company
+		? isEnriching(company.enrichmentStatus, company.queued)
+		: false;
 
 	const location = company
 		? [company.city, company.stateCode, company.country]
@@ -183,6 +188,7 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 					content: (
 						<CompanyContacts
 							company={company}
+							running={enrichmentRunning}
 							adding={adding === "contact"}
 							onAdd={() => setAdding("contact")}
 							onDone={() => setAdding(null)}
@@ -426,11 +432,13 @@ function CompanyOverview({ company }: { company: Company }) {
 
 function CompanyContacts({
 	company,
+	running,
 	adding,
 	onAdd,
 	onDone,
 }: {
 	company: Company;
+	running: boolean;
 	adding: boolean;
 	onAdd: () => void;
 	onDone: () => void;
@@ -438,6 +446,7 @@ function CompanyContacts({
 	const trpc = useTRPC();
 	const cache = useCrmCache();
 	const openRecord = useOpenRecord();
+	const emptyState = companyContactsEmptyState(company.name, running);
 
 	const setPrimary = useMutation(
 		trpc.companies.setPrimaryContact.mutationOptions({
@@ -461,13 +470,17 @@ function CompanyContacts({
 				{adding ? null : (
 					<DetailSheetEmpty
 						icon={UserMultiple}
-						title="No contacts yet"
-						description={`People you engage and prospects you want to reach at ${company.name} appear here.`}
+						title={emptyState.title}
+						description={emptyState.description}
 						action={
-							<Button variant="outline" size="sm" onClick={onAdd}>
-								<Icon icon={Add} data-icon="inline-start" />
-								Add contact
-							</Button>
+							emptyState.running ? (
+								<Spinner />
+							) : (
+								<Button variant="outline" size="sm" onClick={onAdd}>
+									<Icon icon={Add} data-icon="inline-start" />
+									Add contact
+								</Button>
+							)
 						}
 					/>
 				)}
