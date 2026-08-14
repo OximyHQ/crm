@@ -430,7 +430,7 @@ function work(kind: string, reason: string): string {
 		case "company-profile":
 			return "This company's brand, industry, location and links are filled in separately and may already be there. Read the account, fill anything still missing, and write a brief if there is something worth saying.";
 		case "company-prospecting":
-			return "A rep requested company research. Read the account, fill anything still missing, and write a brief if there is something worth saying. Then load prospecting. Add up to three sourced buyer or champion contacts only when the company clearly matches our target customer. Add nobody when the fit or role relevance is weak.";
+			return "A rep requested prospect contacts. Read the company history once. Load prospecting immediately. Do not research the company again. Do not list fields. Do not write a company brief. The companion brand task handles the company profile. Use the existing company details and public sources to verify ICP fit. Find up to three sourced buyers or champions. When at least one candidate meets every rule, call add_prospect_contacts before finishing. Add nobody when the fit or role relevance is weak.";
 		case "workspace-profile":
 			return "Write the profile of the company you work for, so that every other session knows who we are. Read our own site and keep it short.";
 		default:
