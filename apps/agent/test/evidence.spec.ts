@@ -20,6 +20,10 @@ describe("scoreEvidence", () => {
 		expect(scoreEvidence(of("crm.thread-reply")).band).toBe("VERIFIED");
 	});
 
+	it("treats an employer team page as primary evidence", () => {
+		expect(scoreEvidence(of("company.team-page")).band).toBe("VERIFIED");
+	});
+
 	it("writes a title a signature block states on a thread they replied to", () => {
 		expect(scoreEvidence(of("crm.signature-block")).band).toBe("PROBABLE");
 		expect(

@@ -65,7 +65,7 @@ export class AgentTriggerService {
 
 		await this.enqueue({
 			companyId,
-			kind: "company-profile",
+			kind: "company-prospecting",
 			reason,
 			priority: PRIORITY.requested,
 			budget: 8,

@@ -322,6 +322,7 @@ enum RecordSource {
   EMAIL
   CALENDAR
   TRACKING
+  PROSPECTING
 }
 
 enum AgentConversationKind {

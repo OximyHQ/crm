@@ -6,6 +6,7 @@ export const TASK_KINDS = [
 	"profile",
 	"recheck",
 	"company-profile",
+	"company-prospecting",
 	"workspace-profile",
 	"field-backfill",
 	"slack-people-match",

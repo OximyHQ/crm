@@ -75,6 +75,7 @@ export type ContactRow = {
 	email: string | null;
 	title: string | null;
 	imageUrl: string | null;
+	source: RecordSource;
 	company: {
 		id: string;
 		name: string;
@@ -180,6 +181,7 @@ export class ContactsService {
 				twitterUrl: true,
 				githubUrl: true,
 				imageUrl: true,
+				source: true,
 				enrichmentStatus: true,
 				enrichmentError: true,
 				createdAt: true,

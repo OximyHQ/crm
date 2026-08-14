@@ -97,6 +97,7 @@ export async function recordFact(
 			linkedinUrl: true,
 			twitterUrl: true,
 			githubUrl: true,
+			source: true,
 		},
 	});
 
@@ -315,10 +316,12 @@ function humanOwns({
 		email: string | null;
 		firstName: string;
 		lastName: string | null;
+		source?: string;
 	} & Record<string, unknown>;
 	hasAgentFact: boolean;
 }): boolean {
 	if (field === "name") {
+		if (contact.source === "PROSPECTING" && !hasAgentFact) return false;
 		return !isDerivedName(contact.email, contact.firstName, contact.lastName);
 	}
 

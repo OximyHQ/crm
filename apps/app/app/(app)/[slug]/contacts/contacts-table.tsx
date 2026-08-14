@@ -27,6 +27,15 @@ import { contactsSearchParams } from "./contacts-search-params";
 
 type ContactRow = RouterOutputs["contacts"]["list"]["rows"][number];
 
+const SOURCE_OPTIONS = [
+	{ value: "MANUAL", label: "Manual" },
+	{ value: "IMPORT", label: "Import" },
+	{ value: "EMAIL", label: "Email" },
+	{ value: "CALENDAR", label: "Calendar" },
+	{ value: "TRACKING", label: "Website" },
+	{ value: "PROSPECTING", label: "Prospecting" },
+];
+
 const COLUMNS: DataTableColumn<ContactRow>[] = [
 	{
 		id: "name",
@@ -178,6 +187,13 @@ export function ContactsTable() {
 					label: company.name,
 				})),
 			].filter((option) => (facetCounts?.company?.[option.value] ?? 0) > 0),
+		},
+		{
+			id: "source",
+			label: "Source",
+			options: SOURCE_OPTIONS.filter(
+				(option) => (facetCounts?.source?.[option.value] ?? 0) > 0,
+			),
 		},
 	];
 
