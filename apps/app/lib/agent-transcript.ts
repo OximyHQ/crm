@@ -58,6 +58,7 @@ const VERBS: Record<string, string> = {
 	set_contact_socials: "Checked a profile against the account itself",
 	identify_contact: "Put a name to the address",
 	record_fact: "Recorded what it found",
+	add_prospect_contacts: "Added sourced prospect contacts",
 	write_brief: "Wrote the background",
 	write_workspace_profile: "Wrote up who we are",
 	research_person: "Researched them on the web",

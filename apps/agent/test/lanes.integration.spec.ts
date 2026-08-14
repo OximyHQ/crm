@@ -102,6 +102,7 @@ describe("kind vocabulary", () => {
 		expect(isDirectKind("brand")).toBe(true);
 		expect(isDirectKind("portrait")).toBe(true);
 		expect(isDirectKind("company-profile")).toBe(false);
+		expect(isDirectKind("company-prospecting")).toBe(false);
 		expect(isDirectKind("identify")).toBe(false);
 		expect(isDirectKind("workspace-profile")).toBe(false);
 	});

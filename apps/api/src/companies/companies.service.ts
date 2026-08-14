@@ -227,6 +227,7 @@ export class CompaniesService {
 						email: true,
 						title: true,
 						imageUrl: true,
+						source: true,
 						owner: { select: OWNER_SELECT },
 					},
 				},

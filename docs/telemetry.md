@@ -139,7 +139,7 @@ and the tool name only. `AgentEvent.data` itself is never sent.
 | `fact_decision_median_hours` | Median hours from `observedAt` to `decidedAt` |
 | `facts_superseded_within_7_days` | Facts the agent changed its mind about |
 
-Evidence kinds are matched against the eleven in `lib/evidence.ts`; anything else is `other`.
+Evidence kinds are matched against the twelve in `lib/evidence.ts`; anything else is `other`.
 `method` is a label a tool writes, so it is sent only when it matches a strict lowercase
 dotted-slug shape under 40 characters — a name, an address or a sentence cannot pass, and is
 counted as `other` instead. The fact's `value`, `field`, `evidence` and `sourceUrl` are never
@@ -150,7 +150,7 @@ sent.
 | Property | What it is |
 | --- | --- |
 | `contacts_bucket`, `companies_bucket`, `deals_bucket`, `activities_bucket` | Sizes, in bands |
-| `contacts_by_source`, `companies_by_source` | Counts by `MANUAL` / `IMPORT` / `EMAIL` / `CALENDAR` |
+| `contacts_by_source`, `companies_by_source` | Counts by `MANUAL` / `IMPORT` / `EMAIL` / `CALENDAR` / `TRACKING` / `PROSPECTING` |
 | `deals_by_stage` | Counts by `DealStage`. Stages, never amounts |
 | `activities_by_type` | Counts by `ActivityType` |
 | `mailbox_sync_configured` | Whether any `MailboxSync` row exists |

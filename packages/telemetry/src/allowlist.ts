@@ -113,6 +113,7 @@ export function permitted(
 }
 
 export const AGENT_TOOLS = [
+	"add_prospect_contacts",
 	"agent",
 	"archive_field",
 	"enrich_company",
@@ -171,6 +172,7 @@ export const EVIDENCE_KINDS = [
 	"crm.signature-block",
 	"github.account-identity",
 	"crm.meeting-attendance",
+	"company.team-page",
 	"web.cited-claim",
 	"handle.name-form",
 	"search.cites-profile",

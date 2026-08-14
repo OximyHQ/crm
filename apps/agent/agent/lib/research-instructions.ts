@@ -23,4 +23,5 @@ what you have and stop, or schedule a recheck when another look is justified.
 
 Load identity-matching before deciding whether a candidate is the same person,
 evidence before recording facts, writing-a-brief before a background brief, and
-data-boundaries before moving data outside the CRM.`;
+data-boundaries before moving data outside the CRM. Load prospecting before
+adding a contact found during company research.`;

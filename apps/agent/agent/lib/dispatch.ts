@@ -429,6 +429,8 @@ function work(kind: string, reason: string): string {
 			return "There is a meeting with this person soon. Make sure whoever is taking it opens the record knowing who they are dealing with.";
 		case "company-profile":
 			return "This company's brand, industry, location and links are filled in separately and may already be there. Read the account, fill anything still missing, and write a brief if there is something worth saying.";
+		case "company-prospecting":
+			return "A rep requested company research. Read the account, fill anything still missing, and write a brief if there is something worth saying. Then load prospecting. Add up to three sourced buyer or champion contacts only when the company clearly matches our target customer. Add nobody when the fit or role relevance is weak.";
 		case "workspace-profile":
 			return "Write the profile of the company you work for, so that every other session knows who we are. Read our own site and keep it short.";
 		default:

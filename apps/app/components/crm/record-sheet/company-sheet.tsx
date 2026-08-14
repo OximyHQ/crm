@@ -6,6 +6,7 @@ import Star from "@carbon/icons-react/es/Star";
 import StarFilled from "@carbon/icons-react/es/StarFilled";
 import UserMultiple from "@carbon/icons-react/es/UserMultiple";
 import type { FieldValueJson } from "@crm/db/fields";
+import { Badge } from "@crm/ui/components/badge";
 import { Button } from "@crm/ui/components/button";
 import { EmptyCellValue } from "@crm/ui/components/empty-cell";
 import {
@@ -461,7 +462,7 @@ function CompanyContacts({
 					<DetailSheetEmpty
 						icon={UserMultiple}
 						title="No contacts yet"
-						description={`Everyone you talk to at ${company.name} lives here — add the first person and their calls, emails and notes hang off them.`}
+						description={`People you engage and prospects you want to reach at ${company.name} appear here.`}
 						action={
 							<Button variant="outline" size="sm" onClick={onAdd}>
 								<Icon icon={Add} data-icon="inline-start" />
@@ -528,6 +529,9 @@ function CompanyContacts({
 											.filter(Boolean)
 											.join(" ")}
 									</span>
+									{contact.source === "PROSPECTING" ? (
+										<Badge variant="outline">Prospect</Badge>
+									) : null}
 								</span>
 							</TableCell>
 							<TableCell className="truncate px-3 py-2.5">

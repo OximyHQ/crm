@@ -152,6 +152,9 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 			note={
 				contact ? (
 					<>
+						{contact.source === "PROSPECTING" ? (
+							<StatusIndicator tone="neutral" label="Prospecting contact" />
+						) : null}
 						{contact.isPrimaryContact ? (
 							<StatusIndicator
 								tone="success"

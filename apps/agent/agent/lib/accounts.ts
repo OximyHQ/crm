@@ -41,6 +41,7 @@ export type CompanyPerson = {
 	threads: number;
 	meetings: number;
 	needsIdentity: boolean;
+	source: string;
 };
 
 export type CompanyDeal = {
@@ -130,6 +131,7 @@ export async function readCompanyHistory(
 					title: true,
 					email: true,
 					linkedinUrl: true,
+					source: true,
 					lastActivityAt: true,
 					_count:
 						includeEmail || includeCalendar
@@ -266,6 +268,7 @@ export async function readCompanyHistory(
 				person.firstName,
 				person.lastName,
 			),
+			source: person.source,
 		})),
 		deals: deals.map(toCompanyDeal),
 		threads: threads.map(toAccountThread),

@@ -7,6 +7,7 @@ export type EvidenceKind =
 	| "crm.signature-block"
 	| "github.account-identity"
 	| "crm.meeting-attendance"
+	| "company.team-page"
 	| "web.cited-claim"
 	| "handle.name-form"
 	| "search.cites-profile"
@@ -49,6 +50,11 @@ export const WEIGHTS: Record<EvidenceKind, Weighting> = {
 		weight: 0.7,
 		primary: true,
 		label: "they attended a meeting on our calendar",
+	},
+	"company.team-page": {
+		weight: 0.85,
+		primary: true,
+		label: "their employer names them on its team page",
 	},
 	"web.cited-claim": {
 		weight: 0.4,

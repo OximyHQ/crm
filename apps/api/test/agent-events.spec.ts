@@ -48,6 +48,7 @@ afterAll(async () => {
 			OR: [
 				{ dealId: { in: [dealId, persistedDealId].filter(Boolean) } },
 				{ contactId },
+				{ companyId: persistedCompanyId },
 			],
 		},
 	});
@@ -73,6 +74,31 @@ afterAll(async () => {
 });
 
 describe("CRM agent events", () => {
+	it("keeps automatic profiling separate from manual prospecting", async () => {
+		await service.companyCreated(
+			persistedCompanyId,
+			"Automatic company profile",
+		);
+		await service.companyRequested(
+			persistedCompanyId,
+			"Manual company research",
+		);
+
+		const kinds = (
+			await db.agentTask.findMany({
+				where: {
+					companyId: persistedCompanyId,
+					kind: { in: ["company-profile", "company-prospecting"] },
+				},
+				select: { kind: true },
+			})
+		)
+			.map((task) => task.kind)
+			.sort();
+
+		expect(kinds).toEqual(["company-profile", "company-prospecting"]);
+	});
+
 	it("routes every event to its catalog record kind", async () => {
 		const occurredAt = new Date("2026-08-10T09:00:00.000Z");
 		await service.withCrmEvents(async (_tx, emit) => {

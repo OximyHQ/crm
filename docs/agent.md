@@ -66,6 +66,10 @@ evidence. Ambiguous deals remain unassigned for review.
 `identify` 100 · `sweep` 50 · `companyProfile` 40 · `recheck` 0. Brand and
 portrait tasks are what a rep reads *before* deciding what to open.
 
+Automatic `company-profile` tasks never add people. Manual company requests use
+`company-prospecting`, which can add sourced ICP contacts after loading the
+prospecting skill.
+
 **`claimDue` sorts what it claims** — Postgres does not order `UPDATE … RETURNING` by
 its sub-select's `ORDER BY`.
 
