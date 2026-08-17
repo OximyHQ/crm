@@ -2,6 +2,7 @@ import ArrowRight from "@carbon/icons-react/es/ArrowRight";
 import Chat from "@carbon/icons-react/es/Chat";
 import Email from "@carbon/icons-react/es/Email";
 import Events from "@carbon/icons-react/es/Events";
+import LogoLinkedin from "@carbon/icons-react/es/LogoLinkedin";
 import MagicWand from "@carbon/icons-react/es/MagicWand";
 import Phone from "@carbon/icons-react/es/Phone";
 import Task from "@carbon/icons-react/es/Task";
@@ -13,6 +14,7 @@ const PRESENTATION: Record<ActivityType, { icon: CarbonIcon; label: string }> =
 		NOTE: { icon: Chat, label: "Note" },
 		CALL: { icon: Phone, label: "Call" },
 		EMAIL: { icon: Email, label: "Email" },
+		LINKEDIN: { icon: LogoLinkedin, label: "LinkedIn" },
 		MEETING: { icon: Events, label: "Meeting" },
 		TASK: { icon: Task, label: "Task" },
 		STAGE_CHANGE: { icon: ArrowRight, label: "Stage change" },

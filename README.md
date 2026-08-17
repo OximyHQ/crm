@@ -321,7 +321,7 @@ short version:
 | --- | --- |
 | `bun run dev` | Prepare the local database, then run everything in dependency-aware watch mode |
 | `bun run build` | Build all apps and packages |
-| `bun run test` | Run the test suite |
+| `bun run test` | Run the test suite, or skip it when `TEST_DATABASE_URL` is absent |
 | `bun run check-types` | `tsc --noEmit` everywhere |
 | `bun run lint` / `format` | [Biome](https://biomejs.dev) |
 | `bun run db:migrate` | Create and apply a migration |

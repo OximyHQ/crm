@@ -25,7 +25,7 @@ import { useTRPC } from "@/lib/trpc/client";
 import { ActivityIcon } from "./activity-icon";
 import type { TimelineAnchor } from "./timeline";
 
-const TYPES = ["NOTE", "CALL", "EMAIL", "MEETING", "TASK"] as const;
+const TYPES = ["NOTE", "CALL", "EMAIL", "LINKEDIN", "MEETING", "TASK"] as const;
 
 type ComposableType = (typeof TYPES)[number];
 
@@ -35,9 +35,10 @@ const dueFormat = new Intl.DateTimeFormat("en-US", {
 });
 
 const PLACEHOLDER: Record<ComposableType, string> = {
-	NOTE: "Log a note, call, email, meeting or task…",
+	NOTE: "Log a note, call, email, LinkedIn activity, meeting or task…",
 	CALL: "What came out of the call?",
 	EMAIL: "What was said?",
+	LINKEDIN: "What happened on LinkedIn?",
 	MEETING: "What came out of the meeting?",
 	TASK: "What needs doing?",
 };
