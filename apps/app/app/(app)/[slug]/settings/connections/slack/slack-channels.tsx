@@ -30,7 +30,7 @@ import {
 import { useSlackChannels } from "@/components/slack/use-slack-channels";
 import { useTRPC } from "@/lib/trpc/client";
 
-const INVITE_COMMAND = "/invite @Comp AI";
+const INVITE_COMMAND = "/invite @Oximy";
 
 export function SlackChannels() {
 	const trpc = useTRPC();
@@ -45,10 +45,10 @@ export function SlackChannels() {
 				setAsking(null);
 				toast.success(
 					result.alreadyJoined
-						? "Comp AI is already in there."
+						? "Oximy is already in there."
 						: result.queued
-							? "Comp AI is joining."
-							: "Ask someone inside to invite Comp AI.",
+							? "Oximy is joining."
+							: "Ask someone inside to invite Oximy.",
 				);
 			},
 			onError: (error) => toast.error(error.message),
@@ -75,7 +75,7 @@ export function SlackChannels() {
 		<section className="flex flex-col gap-3 px-(--spacing-block-inline)">
 			<div className="flex items-end justify-between gap-4">
 				<div>
-					<h2 className="font-medium text-sm">Channels Comp AI can reach</h2>
+					<h2 className="font-medium text-sm">Channels Oximy can reach</h2>
 					<p className="text-muted-foreground text-xs">
 						Agents pick from this list.
 					</p>
@@ -92,7 +92,7 @@ export function SlackChannels() {
 
 			{channels.stalled ? (
 				<p className="text-warning text-xs">
-					Comp AI is not reading Slack right now. The list can be out of date.
+					Oximy is not reading Slack right now. The list can be out of date.
 				</p>
 			) : null}
 
@@ -118,7 +118,7 @@ export function SlackChannels() {
 							? "Reading the channel list from Slack…"
 							: query
 								? `No channel matches “${query}”.`
-								: "No channels yet. Comp AI reads the list from Slack after it connects."}
+								: "No channels yet. Oximy reads the list from Slack after it connects."}
 					</p>
 				}
 				onAdd={(channel) => void joinAction.run(channel.id)}
@@ -181,13 +181,13 @@ function AskDialog({
 				<AlertDialogHeader>
 					<AlertDialogTitle>
 						{canInviteItself
-							? `Add Comp AI to #${channel.name}?`
-							: "Ask someone to add Comp AI"}
+							? `Add Oximy to #${channel.name}?`
+							: "Ask someone to add Oximy"}
 					</AlertDialogTitle>
 					<AlertDialogDescription>
 						{canInviteItself
-							? `It is a private channel, so Comp AI joins as you. Same as typing the invite yourself. Everyone in the channel sees it join. It reads nothing until you turn a permission on.`
-							: `We cannot add Comp AI to a private channel yet. Someone already in #${channel.name} has to run this.`}
+							? `It is a private channel, so Oximy joins as you. Same as typing the invite yourself. Everyone in the channel sees it join. It reads nothing until you turn a permission on.`
+							: `We cannot add Oximy to a private channel yet. Someone already in #${channel.name} has to run this.`}
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 
@@ -206,7 +206,7 @@ function AskDialog({
 						onClick={canInviteItself ? onConfirm : () => void copyThenConfirm()}
 					>
 						<AsyncButtonContent pendingLabel="Adding…" status={status}>
-							{canInviteItself ? "Add Comp AI" : "Copy and mark as asked"}
+							{canInviteItself ? "Add Oximy" : "Copy and mark as asked"}
 						</AsyncButtonContent>
 					</Button>
 				</AlertDialogFooter>

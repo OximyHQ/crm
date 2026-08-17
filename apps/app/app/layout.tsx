@@ -21,10 +21,10 @@ const fontMono = Geist_Mono({
 
 export const metadata: Metadata = {
 	title: {
-		default: "Comp AI - CRM",
-		template: "%s · Comp AI CRM",
+		default: "Oximy CRM",
+		template: "%s · Oximy CRM",
 	},
-	description: "Customer Relationship Management for Comp AI",
+	description: "Oximy customer relationship management",
 	icons: {
 		icon: [
 			{ url: "/favicon.svg", type: "image/svg+xml" },

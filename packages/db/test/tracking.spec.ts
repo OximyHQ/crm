@@ -29,7 +29,7 @@ const CONFIG: TrackingConfig = {
 	honourDnt: true,
 	cookieDays: 395,
 	hosts: [
-		{ host: "trycomp.ai", scope: "SITE_AND_SUBDOMAINS" },
+		{ host: "oximy.com", scope: "SITE_AND_SUBDOMAINS" },
 		{ host: "shop.example.com", scope: "EXACT_HOST" },
 	],
 };
@@ -201,15 +201,15 @@ describe("a page path", () => {
 
 describe("the allow-list", () => {
 	test("covers subdomains only where the scope says so", () => {
-		expect(hostAllowed("trycomp.ai", CONFIG)).toBe(true);
-		expect(hostAllowed("docs.trycomp.ai", CONFIG)).toBe(true);
+		expect(hostAllowed("oximy.com", CONFIG)).toBe(true);
+		expect(hostAllowed("docs.oximy.com", CONFIG)).toBe(true);
 		expect(hostAllowed("shop.example.com", CONFIG)).toBe(true);
 		expect(hostAllowed("www.shop.example.com", CONFIG)).toBe(false);
 	});
 
 	test("never matches a host that merely ends the same way", () => {
-		expect(hostAllowed("nottrycomp.ai", CONFIG)).toBe(false);
-		expect(hostAllowed("trycomp.ai.evil.com", CONFIG)).toBe(false);
+		expect(hostAllowed("notoximy.com", CONFIG)).toBe(false);
+		expect(hostAllowed("oximy.com.evil.com", CONFIG)).toBe(false);
 	});
 
 	test("lets everything through when the limit is off", () => {
@@ -221,8 +221,8 @@ describe("the allow-list", () => {
 
 describe("the domain an event belongs to", () => {
 	test("is the parent when the scope covers subdomains", () => {
-		expect(matchedHost("docs.trycomp.ai", CONFIG)?.host).toBe("trycomp.ai");
-		expect(matchedHost("trycomp.ai", CONFIG)?.host).toBe("trycomp.ai");
+		expect(matchedHost("docs.oximy.com", CONFIG)?.host).toBe("oximy.com");
+		expect(matchedHost("oximy.com", CONFIG)?.host).toBe("oximy.com");
 	});
 
 	test("is the exact row when that is the whole of the scope", () => {
@@ -240,13 +240,13 @@ describe("the domain an event belongs to", () => {
 		const both: TrackingConfig = {
 			...CONFIG,
 			hosts: [
-				{ host: "trycomp.ai", scope: "SITE_AND_SUBDOMAINS" },
-				{ host: "docs.trycomp.ai", scope: "EXACT_HOST" },
+				{ host: "oximy.com", scope: "SITE_AND_SUBDOMAINS" },
+				{ host: "docs.oximy.com", scope: "EXACT_HOST" },
 			],
 		};
 
-		expect(matchedHost("docs.trycomp.ai", both)?.host).toBe("docs.trycomp.ai");
-		expect(matchedHost("blog.trycomp.ai", both)?.host).toBe("trycomp.ai");
+		expect(matchedHost("docs.oximy.com", both)?.host).toBe("docs.oximy.com");
+		expect(matchedHost("blog.oximy.com", both)?.host).toBe("oximy.com");
 	});
 });
 
@@ -267,7 +267,7 @@ describe("a stored referrer", () => {
 
 describe("the origin check", () => {
 	test("accepts an allowed origin and refuses the rest", () => {
-		expect(originAllowed("https://docs.trycomp.ai", CONFIG)).toBe(true);
+		expect(originAllowed("https://docs.oximy.com", CONFIG)).toBe(true);
 		expect(originAllowed("https://evil.example", CONFIG)).toBe(false);
 	});
 
@@ -301,7 +301,7 @@ describe("the submission dedupe key", () => {
 	test("collapses the same form inside one minute", () => {
 		const at = new Date("2026-08-10T12:00:10.000Z");
 		const later = new Date("2026-08-10T12:00:50.000Z");
-		const parts = { host: "trycomp.ai", path: "/pricing", email: "a@b.com" };
+		const parts = { host: "oximy.com", path: "/pricing", email: "a@b.com" };
 
 		expect(dedupeKey({ ...parts, at })).toBe(
 			dedupeKey({ ...parts, at: later }),
@@ -312,9 +312,9 @@ describe("the submission dedupe key", () => {
 		const at = new Date("2026-08-10T12:00:10.000Z");
 
 		expect(
-			dedupeKey({ host: "trycomp.ai", path: "/p", email: "a@b.com", at }),
+			dedupeKey({ host: "oximy.com", path: "/p", email: "a@b.com", at }),
 		).not.toBe(
-			dedupeKey({ host: "trycomp.ai", path: "/p", email: "c@d.com", at }),
+			dedupeKey({ host: "oximy.com", path: "/p", email: "c@d.com", at }),
 		);
 	});
 });
