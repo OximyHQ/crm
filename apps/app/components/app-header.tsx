@@ -6,6 +6,7 @@ import Logout from "@carbon/icons-react/es/Logout";
 import Menu from "@carbon/icons-react/es/Menu";
 import UserAvatar from "@carbon/icons-react/es/UserAvatar";
 import { Avatar, AvatarFallback, AvatarImage } from "@crm/ui/components/avatar";
+import OximyLogo from "@crm/ui/components/brand-logos/oximy";
 import { Button } from "@crm/ui/components/button";
 import {
 	DropdownMenu,
@@ -15,7 +16,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@crm/ui/components/dropdown-menu";
-import Logo from "@crm/ui/components/logo";
 import { Separator } from "@crm/ui/components/separator";
 import { Skeleton } from "@crm/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
@@ -51,10 +51,13 @@ export function AppHeader({ user }: { user: User }) {
 				</Button>
 				<Link
 					href={workspaceUrl()}
-					aria-label="Homepage"
-					className="hidden size-8 items-center justify-center text-foreground md:flex"
+					aria-label="Oximy CRM homepage by Comp AI"
+					className="hidden h-8 items-center gap-2 md:flex"
 				>
-					<Logo className="size-5" />
+					<OximyLogo className="size-5 shrink-0" />
+					<span className="whitespace-nowrap text-muted-foreground text-xs">
+						by Comp AI
+					</span>
 				</Link>
 				<Separator orientation="vertical" className="mx-1 h-5 bg-transparent" />
 				<span className="min-w-0 truncate font-medium text-sm">{label}</span>
@@ -81,8 +84,11 @@ export function AppHeaderFallback() {
 			aria-busy="true"
 		>
 			<div className="flex shrink-0 items-center gap-1">
-				<span className="hidden size-8 items-center justify-center text-foreground md:flex">
-					<Logo className="size-5" />
+				<span className="hidden h-8 items-center gap-2 md:flex">
+					<OximyLogo className="size-5 shrink-0" />
+					<span className="whitespace-nowrap text-muted-foreground text-xs">
+						by Comp AI
+					</span>
 				</span>
 				<Separator orientation="vertical" className="mx-1 h-5 bg-transparent" />
 				<Skeleton className="h-4 w-24" />
