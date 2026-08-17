@@ -155,6 +155,9 @@ never reuse one from an example, a tutorial, or another environment.
 ## Tests
 
 ```sh
-bun run --filter=api test
-bun run --filter=agent test    # integration specs need DATABASE_URL + real Postgres
+bun run test
+TEST_DATABASE_URL="postgresql://…/crm_test" bun run test:database
 ```
+
+`bun run test` skips the database-backed suite when `TEST_DATABASE_URL` is absent.
+CI creates its own test database and always runs the complete suite.

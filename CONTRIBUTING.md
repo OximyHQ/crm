@@ -39,7 +39,7 @@ bun run lint
 bun run test
 ```
 
-All three run on CI, and `bun run format` fixes most of what `lint` complains about.
+All three run on CI, and `bun run format` fixes most of what `lint` reports.
 
 **A `pre-push` hook runs them for you**, so a push that would fail CI fails on your machine
 instead, where the feedback is in seconds rather than minutes. `bun install` wires it up — the
@@ -47,14 +47,13 @@ hooks live in `.githooks/` and `prepare` points `core.hooksPath` at them, so the
 install and no hook manager in the dependency tree. Turbo caches, so a second push that changed
 nothing relevant is nearly free.
 
-It needs the Postgres from `docker compose up -d`, because the API and telemetry tests are real
-integration tests. When you need to push past it — a WIP branch, a docker-less machine, a red test
-you are deliberately pushing to ask about — `git push --no-verify` skips it, and `CRM_SKIP_HOOKS=1`
-skips it for a whole shell.
+The test command skips the database-backed suite when `TEST_DATABASE_URL` is absent. CI creates its
+own `crm_test` database and always runs the complete suite. A local run needs Postgres from
+`docker compose up -d` and a test database created by `bun run db:test`.
 
-**The suite runs against `TEST_DATABASE_URL`, never `DATABASE_URL`, and refuses to start without
-it.** `bun run db:test` creates the database and migrates it; the name has to end in `_test`.
-These tests write and delete real rows, and the hook above runs them on every push — so without
+**The database suite runs against `TEST_DATABASE_URL`, never `DATABASE_URL`.** `bun run db:test`
+creates the database and migrates it; the name has to end in `_test`.
+These tests write and delete real rows. The hook runs them only when the test URL exists. Without
 that split, one `git push` reaches whatever database your `.env` happens to name, which for a
 self-hoster is production. That is not hypothetical: a run that was interrupted between deleting
 the workspace's members and putting them back left the developer locked out of their own

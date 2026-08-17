@@ -542,6 +542,7 @@ async function recentNotes(
 				in: [
 					ActivityType.NOTE,
 					ActivityType.CALL,
+					ActivityType.LINKEDIN,
 					ActivityType.TASK,
 					ActivityType.ENRICHMENT,
 				],

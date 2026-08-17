@@ -302,6 +302,7 @@ enum ActivityType {
   NOTE
   CALL
   EMAIL
+  LINKEDIN
   MEETING
   TASK
   STAGE_CHANGE

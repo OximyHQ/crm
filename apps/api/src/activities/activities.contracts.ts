@@ -1,10 +1,11 @@
-import { ActivityType } from "@crm/db";
+import { ActivityType } from "@crm/db/enums";
 import { z } from "zod";
 
 const COMPOSABLE_TYPES = [
 	ActivityType.NOTE,
 	ActivityType.CALL,
 	ActivityType.EMAIL,
+	ActivityType.LINKEDIN,
 	ActivityType.MEETING,
 	ActivityType.TASK,
 ] as const;
