@@ -225,7 +225,7 @@ describe("deal list presentation", () => {
 			asOf: "2026-08-06T01:15:00.000Z",
 			deals: [
 				output.deals[0],
-				{ ...output.deals[0], id: "deal-2", name: "Linear — Comp AI" },
+				{ ...output.deals[0], id: "deal-2", name: "Linear — Oximy" },
 			],
 		});
 		if (!first || !second) throw new Error("Expected valid deal list results");

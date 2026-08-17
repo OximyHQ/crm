@@ -1,14 +1,14 @@
 import { Badge } from "@crm/ui/components/badge";
 import GoogleLogo from "@crm/ui/components/brand-logos/google";
 import SlackLogo from "@crm/ui/components/brand-logos/slack";
-import CompLogo from "@crm/ui/components/logo";
+import Logo from "@crm/ui/components/logo";
 import type { ComponentType, SVGProps } from "react";
 
 const BRANDS: Array<{
 	match: RegExp;
 	Logo: ComponentType<SVGProps<SVGSVGElement>>;
 }> = [
-	{ match: /\bcrm\b/i, Logo: CompLogo },
+	{ match: /\bcrm\b/i, Logo },
 	{ match: /\bslack\b/i, Logo: SlackLogo },
 	{ match: /\b(gmail|google)\b/i, Logo: GoogleLogo },
 ];
