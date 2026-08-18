@@ -102,7 +102,7 @@ async function ConnectionsSettingsPageContent({
 								? `Connected · ${quo.pending} waiting`
 								: "Connected",
 						bringsIn: "Calls, messages, recordings, summaries and transcripts",
-						sends: "Calls through your device dialer",
+						sends: "Calls through the Quo web dialer",
 						href: `/${slug}/settings/connections/quo`,
 						logo: Phone,
 					},

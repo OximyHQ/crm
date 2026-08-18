@@ -35,12 +35,14 @@ export class QuoController {
 		@Headers("webhook-timestamp") webhookTimestamp?: string,
 		@Headers("webhook-signature") webhookSignature?: string,
 	): Promise<{ accepted: true }> {
-		const connection = await readQuoConnection(this.db);
+		const [connection, rawBody] = await Promise.all([
+			readQuoConnection(this.db),
+			readBody(request, QUO.webhook.maxBodyBytes),
+		]);
 		if (!connection) {
 			throw new ServiceUnavailableException("Quo is not connected.");
 		}
 
-		const rawBody = await readBody(request, QUO.webhook.maxBodyBytes);
 		if (
 			!rawBody ||
 			!webhookId ||

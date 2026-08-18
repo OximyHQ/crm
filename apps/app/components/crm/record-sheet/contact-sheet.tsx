@@ -55,6 +55,7 @@ import { LocalDateTime, LocalRelativeDate } from "@/components/local-date-time";
 import { factsByField } from "@/lib/contact-facts";
 import { ENRICHMENT_POLL_MS, isEnriching } from "@/lib/enrichment-status";
 import { savingField } from "@/lib/pending-field";
+import { quoWebDialerUrl } from "@/lib/quo-web-dialer";
 import { hasContactLinks } from "@/lib/social-links";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
@@ -240,7 +241,9 @@ export function ContactSheet({ contactId }: { contactId: string }) {
 						<DetailSheetStat label="Phone">
 							{contact.phone ? (
 								<a
-									href={`tel:${contact.phone}`}
+									href={quoWebDialerUrl(contact.phone)}
+									target="_blank"
+									rel="noreferrer"
 									className="underline-offset-2 hover:underline"
 								>
 									{contact.phone}
