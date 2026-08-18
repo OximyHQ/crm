@@ -8,6 +8,9 @@ describe("CRM MCP tools", () => {
 		const read = await toolNames("crm:read");
 		expect(read).toContain("get_dashboard_summary");
 		expect(read).toContain("get_activity_timeline");
+		expect(read).toContain("list_communications");
+		expect(read).toContain("search_communications");
+		expect(read).toContain("get_communication");
 		expect(read).toContain("list_my_tasks");
 		expect(read).not.toContain("delete_contact");
 
@@ -16,6 +19,7 @@ describe("CRM MCP tools", () => {
 		expect(write).toContain("set_company_primary_contact");
 		expect(write).toContain("detach_contact_from_deal");
 		expect(write).toContain("create_activity");
+		expect(write).toContain("resolve_communication");
 		expect(write).not.toContain("delete_contact");
 
 		const agents = await toolNames("crm:agents");
@@ -182,6 +186,7 @@ async function mcpClient(
 		db as never,
 		dependency("companies") as never,
 		dependency("contacts") as never,
+		dependency("communications") as never,
 		dependency("deals") as never,
 		dependency("activities") as never,
 		dependency("dashboard") as never,

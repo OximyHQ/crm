@@ -1,9 +1,10 @@
 import type { ZodType, z } from "zod";
 import * as agents from "./agents";
 import * as granola from "./granola";
+import * as quo from "./quo";
 import * as slack from "./slack";
 
-export const schemas = { agents, granola, slack } as const;
+export const schemas = { agents, granola, quo, slack } as const;
 
 export type {
 	Handoff,
@@ -13,6 +14,7 @@ export type {
 	InputRequested,
 	Permission,
 } from "./agents";
+export type { QuoWebhookEvent } from "./quo";
 export type { AuthTest, Installation, JoinPayload, Reply } from "./slack";
 
 export class InvalidInput extends Error {

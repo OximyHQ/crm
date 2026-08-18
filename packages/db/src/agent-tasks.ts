@@ -13,6 +13,9 @@ export const TASK_KINDS = [
 	"slack-channel-join",
 	"granola-backfill",
 	"granola-note",
+	"quo-event",
+	"quo-sync",
+	"quo-contact-sync",
 	"agent-event",
 ] as const;
 
@@ -25,6 +28,9 @@ export const DIRECT_KINDS = [
 	"slack-channel-join",
 	"granola-backfill",
 	"granola-note",
+	"quo-event",
+	"quo-sync",
+	"quo-contact-sync",
 	"agent-event",
 ] as const;
 
@@ -53,5 +59,8 @@ export const PRIORITY = {
 	slackJoin: 950,
 	granolaBackfill: 650,
 	granolaNote: 750,
+	quoEvent: 800,
+	quoSync: 700,
+	quoContactSync: 600,
 	event: 700,
 } as const;

@@ -1,10 +1,12 @@
 import { ActivityType, type Db, type Prisma } from "@crm/db";
+import { schemas } from "@crm/validation";
 import {
 	BadRequestException,
 	Injectable,
 	Logger,
 	NotFoundException,
 } from "@nestjs/common";
+import { z } from "zod";
 import { ActivityStampService } from "../crm/activity-stamp.service";
 import { blankToNull } from "../crm/values";
 import { InjectDatabase } from "../database/database.constants";
@@ -28,6 +30,31 @@ const ENTRY_SELECT = {
 	subject: true,
 	body: true,
 	granolaUrl: true,
+	communication: {
+		select: {
+			id: true,
+			provider: true,
+			direction: true,
+			status: true,
+			durationSeconds: true,
+			sourceUrl: true,
+			participants: {
+				where: { role: "EXTERNAL" as const },
+				select: { phoneE164: true },
+			},
+			artifacts: {
+				select: {
+					id: true,
+					type: true,
+					text: true,
+					payload: true,
+					sourceUrl: true,
+					storedUrl: true,
+					durationSeconds: true,
+				},
+			},
+		},
+	},
 	occurredAt: true,
 	dueAt: true,
 	completedAt: true,
@@ -61,6 +88,7 @@ const ENTRY_SELECT = {
 const NOTE_TYPES = [
 	ActivityType.NOTE,
 	ActivityType.CALL,
+	ActivityType.MESSAGE,
 	ActivityType.EMAIL,
 	ActivityType.LINKEDIN,
 	ActivityType.MEETING,
@@ -308,14 +336,17 @@ function filterClause(filter: TimelineFilter): Prisma.ActivityWhereInput {
 type Entry = Prisma.ActivityGetPayload<{ select: typeof ENTRY_SELECT }>;
 
 function serializeEntry(entry: Entry) {
+	const communication = entry.communication
+		? serializeCommunication(entry.communication)
+		: null;
 	return {
 		...entry,
+		communication,
 		occurredAt: entry.occurredAt?.toISOString() ?? null,
 		dueAt: entry.dueAt?.toISOString() ?? null,
 		completedAt: entry.completedAt?.toISOString() ?? null,
 		createdAt: entry.createdAt.toISOString(),
 		meta: entry.meta as Record<string, unknown> | null,
-
 		emailThread: entry.emailThread
 			? {
 					id: entry.emailThread.id,
@@ -335,6 +366,48 @@ function serializeEntry(entry: Entry) {
 					attendeeCount: entry.calendarEvent._count.attendees,
 				}
 			: null,
+	};
+}
+
+function serializeCommunication(
+	communication: NonNullable<Entry["communication"]>,
+) {
+	const artifact = (type: (typeof communication.artifacts)[number]["type"]) =>
+		communication.artifacts.find((item) => item.type === type);
+	const summary = artifact("SUMMARY");
+	const nextSteps = artifact("NEXT_STEPS");
+	const transcript = artifact("TRANSCRIPT");
+	const recordings = communication.artifacts.filter(
+		(item) => item.type === "RECORDING" || item.type === "VOICEMAIL",
+	);
+
+	return {
+		id: communication.id,
+		provider: communication.provider,
+		direction: communication.direction,
+		status: communication.status,
+		durationSeconds: communication.durationSeconds,
+		sourceUrl: communication.sourceUrl,
+		phoneNumbers: communication.participants
+			.map((participant) => participant.phoneE164)
+			.filter((phone): phone is string => phone !== null),
+		recordings: recordings
+			.map((recording) => ({
+				url: recording.storedUrl ?? recording.sourceUrl,
+				durationSeconds: recording.durationSeconds,
+				type: recording.type,
+			}))
+			.filter(
+				(recording): recording is typeof recording & { url: string } =>
+					recording.url !== null,
+			),
+		summary: summary?.payload ? z.array(z.string()).parse(summary.payload) : [],
+		nextSteps: nextSteps?.payload
+			? z.array(z.string()).parse(nextSteps.payload)
+			: [],
+		transcript: transcript?.payload
+			? schemas.quo.transcriptResource.shape.dialogue.parse(transcript.payload)
+			: [],
 	};
 }
 

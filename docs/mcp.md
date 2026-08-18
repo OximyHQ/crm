@@ -37,12 +37,13 @@ workspace membership on every MCP connection.
 
 ## Tools
 
-Read access provides CRM search, records, timelines, tasks, dashboard totals,
-users, and custom fields.
+Read access provides CRM search, records, timelines, communications, tasks,
+dashboard totals, users, and custom fields. Communication detail includes full
+recordings, summaries, next steps, and transcripts.
 
 Write access provides record creation, updates, bulk changes, enrichment,
-ownership, company moves, primary contacts, deal contacts, activities, and task
-completion.
+ownership, company moves, primary contacts, deal contacts, activities,
+communication resolution, and task completion.
 
 Agent access provides agent configuration, history, activity, files, guided
 creation, revision, deployment, lifecycle management, runs, retries, and

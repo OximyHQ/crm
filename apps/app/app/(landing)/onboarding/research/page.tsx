@@ -1,3 +1,4 @@
+import { CONTEXT_DEV_SIGNUP_URL } from "@crm/db/settings";
 import type { Metadata } from "next";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { requireMailboxAccess } from "@/lib/session";
@@ -19,7 +20,7 @@ export default async function ResearchKeyPage() {
 				description="Power your research agent with Context to research every company added to your CRM."
 			/>
 
-			<ResearchForm />
+			<ResearchForm signupUrl={CONTEXT_DEV_SIGNUP_URL} />
 		</AuthShell>
 	);
 }

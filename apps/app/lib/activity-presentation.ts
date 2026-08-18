@@ -13,6 +13,7 @@ const PRESENTATION: Record<ActivityType, { icon: CarbonIcon; label: string }> =
 	{
 		NOTE: { icon: Chat, label: "Note" },
 		CALL: { icon: Phone, label: "Call" },
+		MESSAGE: { icon: Chat, label: "Message" },
 		EMAIL: { icon: Email, label: "Email" },
 		LINKEDIN: { icon: LogoLinkedin, label: "LinkedIn" },
 		MEETING: { icon: Events, label: "Meeting" },

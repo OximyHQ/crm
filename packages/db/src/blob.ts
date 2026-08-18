@@ -1,11 +1,9 @@
 import { createHash } from "node:crypto";
+import { BLOB_MIRROR } from "./blob-config";
 import { isMirrored } from "./images";
 import { safeFetch } from "./safe-fetch";
 
 export { isMirrored, isOptimizable } from "./images";
-
-const MAX_BYTES = 3 * 1024 * 1024;
-const TIMEOUT_MS = 15_000;
 
 const ALLOWED: Record<string, string> = {
 	"image/jpeg": "jpg",
@@ -18,6 +16,16 @@ const ALLOWED: Record<string, string> = {
 	"image/vnd.microsoft.icon": "ico",
 };
 
+const AUDIO_ALLOWED: Record<string, string> = {
+	"audio/mpeg": "mp3",
+	"audio/mp4": "m4a",
+	"audio/x-m4a": "m4a",
+	"audio/wav": "wav",
+	"audio/x-wav": "wav",
+	"audio/ogg": "ogg",
+	"audio/webm": "webm",
+};
+
 export function blobEnabled(): boolean {
 	return Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
 }
@@ -26,19 +34,42 @@ export async function mirror(
 	sourceUrl: string,
 	prefix: string,
 ): Promise<string | null> {
+	return mirrorFile(sourceUrl, prefix, ALLOWED, BLOB_MIRROR.imageMaxBytes);
+}
+
+export async function mirrorRecording(
+	sourceUrl: string,
+	prefix: string,
+): Promise<string | null> {
+	return mirrorFile(
+		sourceUrl,
+		prefix,
+		AUDIO_ALLOWED,
+		BLOB_MIRROR.audioMaxBytes,
+	);
+}
+
+async function mirrorFile(
+	sourceUrl: string,
+	prefix: string,
+	allowed: Record<string, string>,
+	maxBytes: number,
+): Promise<string | null> {
 	if (!blobEnabled()) return null;
 	if (isMirrored(sourceUrl)) return sourceUrl;
 
 	try {
-		const result = await safeFetch(sourceUrl, { timeoutMs: TIMEOUT_MS });
+		const result = await safeFetch(sourceUrl, {
+			timeoutMs: BLOB_MIRROR.requestTimeoutMs,
+		});
 		if (!result?.response.ok) return null;
 
 		const { response } = result;
 		const type = response.headers.get("content-type")?.split(";")[0]?.trim();
-		const extension = type ? ALLOWED[type.toLowerCase()] : undefined;
+		const extension = type ? allowed[type.toLowerCase()] : undefined;
 		if (!type || !extension) return null;
 
-		const bytes = await readCapped(response);
+		const bytes = await readCapped(response, maxBytes);
 		if (!bytes) return null;
 
 		const digest = createHash("sha256")
@@ -61,9 +92,12 @@ export async function mirror(
 	}
 }
 
-async function readCapped(response: Response): Promise<Buffer | null> {
+async function readCapped(
+	response: Response,
+	maxBytes: number,
+): Promise<Buffer | null> {
 	const declared = Number(response.headers.get("content-length"));
-	if (Number.isFinite(declared) && declared > MAX_BYTES) {
+	if (Number.isFinite(declared) && declared > maxBytes) {
 		await response.body?.cancel();
 		return null;
 	}
@@ -75,7 +109,7 @@ async function readCapped(response: Response): Promise<Buffer | null> {
 	let size = 0;
 
 	try {
-		while (size <= MAX_BYTES) {
+		while (size <= maxBytes) {
 			const { done, value } = await reader.read();
 			if (done) break;
 			size += value.byteLength;
@@ -87,6 +121,6 @@ async function readCapped(response: Response): Promise<Buffer | null> {
 		await reader.cancel().catch(() => {});
 	}
 
-	if (size === 0 || size > MAX_BYTES) return null;
+	if (size === 0 || size > maxBytes) return null;
 	return Buffer.concat(chunks);
 }
