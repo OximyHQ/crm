@@ -35,12 +35,14 @@ export class GranolaController {
 		@Headers("webhook-timestamp") webhookTimestamp?: string,
 		@Headers("webhook-signature") webhookSignature?: string,
 	): Promise<{ accepted: true }> {
-		const connection = await readGranolaConnection(this.db);
+		const [connection, rawBody] = await Promise.all([
+			readGranolaConnection(this.db),
+			readBody(request, GRANOLA.webhook.maxBodyBytes),
+		]);
 		if (!connection) {
 			throw new ServiceUnavailableException("Granola is not connected.");
 		}
 
-		const rawBody = await readBody(request, GRANOLA.webhook.maxBodyBytes);
 		if (
 			!rawBody ||
 			!webhookId ||
