@@ -1,4 +1,8 @@
-import { parseAsInteger, parseAsString, parseAsStringLiteral } from "nuqs/server";
+import {
+	parseAsInteger,
+	parseAsString,
+	parseAsStringLiteral,
+} from "nuqs/server";
 
 export const COMMUNICATION_FILTERS = [
 	"all",
