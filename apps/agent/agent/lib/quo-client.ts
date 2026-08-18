@@ -10,8 +10,10 @@ const quoWebhook = z.object({
 });
 
 const webhookCredential = z.object({
-	id: z.string(),
-	key: z.string().startsWith("whsec_"),
+	data: z.object({
+		id: z.string(),
+		key: z.string().startsWith("whsec_"),
+	}),
 });
 
 const page = <Schema extends z.ZodType>(schema: Schema) =>
@@ -75,7 +77,7 @@ export async function createQuoConnection(
 			},
 			fetcher,
 		),
-	);
+	).data;
 
 	return {
 		webhookId: credential.id,
