@@ -51,10 +51,10 @@ export function AppHeader({ user }: { user: User }) {
 				</Button>
 				<Link
 					href={workspaceUrl()}
-					aria-label="Homepage"
-					className="hidden size-8 items-center justify-center text-foreground md:flex"
+					aria-label="Oximy CRM homepage"
+					className="hidden size-8 items-center justify-center md:flex"
 				>
-					<Logo className="size-5" />
+					<Logo className="size-5 shrink-0" />
 				</Link>
 				<Separator orientation="vertical" className="mx-1 h-5 bg-transparent" />
 				<span className="min-w-0 truncate font-medium text-sm">{label}</span>
@@ -81,8 +81,8 @@ export function AppHeaderFallback() {
 			aria-busy="true"
 		>
 			<div className="flex shrink-0 items-center gap-1">
-				<span className="hidden size-8 items-center justify-center text-foreground md:flex">
-					<Logo className="size-5" />
+				<span className="hidden size-8 items-center justify-center md:flex">
+					<Logo className="size-5 shrink-0" />
 				</span>
 				<Separator orientation="vertical" className="mx-1 h-5 bg-transparent" />
 				<Skeleton className="h-4 w-24" />

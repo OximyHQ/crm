@@ -607,7 +607,8 @@ export class McpService {
 		server.registerTool(
 			"create_activity",
 			{
-				description: "Create a CRM note, call, email, meeting, or task.",
+				description:
+					"Create a CRM note, call, email, LinkedIn activity, meeting, or task.",
 				inputSchema: activityCreateInput,
 				annotations: { readOnlyHint: false, idempotentHint: false },
 			},

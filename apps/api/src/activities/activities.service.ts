@@ -90,6 +90,7 @@ const NOTE_TYPES = [
 	ActivityType.CALL,
 	ActivityType.MESSAGE,
 	ActivityType.EMAIL,
+	ActivityType.LINKEDIN,
 	ActivityType.MEETING,
 ];
 

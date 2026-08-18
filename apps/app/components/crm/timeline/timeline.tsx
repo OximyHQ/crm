@@ -47,7 +47,7 @@ const EMPTY_STATES: Record<
 	all: {
 		title: "Nothing has happened yet",
 		description:
-			"Calls, notes, emails and meetings all land here. Log the first one above, or wait for Gmail and Calendar to sync.",
+			"Calls, notes, emails, LinkedIn activity and meetings all land here. Log the first one above, or wait for Gmail and Calendar to sync.",
 	},
 	notes: {
 		title: "No notes",

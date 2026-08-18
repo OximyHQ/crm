@@ -874,12 +874,29 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.link-hover,
-	.link-hover *,
-	.link-hover::before,
-	.link-hover::after {
-		animation: none !important;
-		transition-duration: 0.01ms !important;
+	.link-hover--slide::before,
+	.link-hover--double::before,
+	.link-hover--double::after,
+	.link-hover--grow::before,
+	.link-hover--grow::after,
+	.link-hover--strike::before,
+	.link-hover--strike span,
+	.link-hover--fade::before,
+	.link-hover--fade::after,
+	.link-hover--pulse::after,
+	.link-hover--swap::before,
+	.link-hover--swap::after,
+	.link-hover--sweep::after,
+	.link-hover--bounce::before,
+	.link-hover--bounce span,
+	.link-hover__graphic--arc path,
+	.link-hover__graphic--scribble path {
+		transition-property: none;
+	}
+
+	.link-hover--pulse:is(:hover, :focus-visible)::before,
+	.link-hover--sweep:is(:hover, :focus-visible)::before {
+		animation-name: none;
 	}
 }
 

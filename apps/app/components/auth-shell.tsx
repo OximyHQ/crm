@@ -6,7 +6,7 @@ import { AuthShader } from "@/components/auth-shader";
 export function AuthShell({ children }: { children: ReactNode }) {
 	return (
 		<main className="dark grid min-h-svh bg-background text-foreground lg:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]">
-			<section className="relative hidden min-h-svh overflow-hidden bg-muted p-8 lg:flex lg:flex-col lg:justify-between xl:p-12">
+			<section className="relative hidden min-h-svh overflow-hidden bg-muted p-8 lg:flex lg:flex-col xl:p-12">
 				<AuthShader />
 
 				<div className="relative flex gap-2 text-sm/5">
@@ -15,7 +15,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
 					</Link>
 				</div>
 
-				<div className="relative flex max-w-lg flex-col gap-8">
+				<div className="relative my-auto flex max-w-lg flex-col gap-8">
 					<div className="flex flex-col gap-4">
 						<p className="font-mono text-xs/4 text-muted-foreground uppercase">
 							CRM
@@ -25,18 +25,6 @@ export function AuthShell({ children }: { children: ReactNode }) {
 						</h1>
 					</div>
 				</div>
-
-				<p className="relative font-mono text-xs/4 text-muted-foreground">
-					Made with love by{" "}
-					<a
-						href="https://trycomp.ai"
-						target="_blank"
-						rel="noreferrer"
-						className="underline underline-offset-4 hover:text-foreground"
-					>
-						Comp AI
-					</a>
-				</p>
 			</section>
 
 			<section className="flex min-h-svh flex-col bg-background px-6 py-8 sm:px-10 lg:px-14">

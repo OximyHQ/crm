@@ -11,10 +11,18 @@ if (!Number.isInteger(port) || port < 1 || port > 65_535) {
 }
 
 const cli = process.platform === "win32" ? "eve.cmd" : "eve";
-const child = spawn(cli, ["start", "--port", String(port)], {
-	stdio: "inherit",
-	env: process.env,
-});
+const child = spawn(
+	cli,
+	["start", "--host", "0.0.0.0", "--port", String(port)],
+	{
+		stdio: "inherit",
+		env: {
+			...process.env,
+			WORKFLOW_LOCAL_BASE_URL:
+				process.env.WORKFLOW_LOCAL_BASE_URL ?? `http://127.0.0.1:${port}`,
+		},
+	},
+);
 
 let settled = false;
 

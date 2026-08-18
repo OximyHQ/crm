@@ -89,7 +89,7 @@ export function AgentCapabilities({
 		trpc.slack.joinChannel.mutationOptions({
 			onSuccess: async () => {
 				await channels.reload();
-				toast.success("Asked someone to invite Comp AI.");
+				toast.success("Asked someone to invite Oximy.");
 			},
 			onError: (error) => toast.error(error.message),
 		}),
@@ -179,7 +179,7 @@ export function AgentCapabilities({
 							</CreateChannelDialog>
 						) : null
 					}
-					summary="One channel. Comp AI joins it when you save."
+					summary="One channel. Oximy joins it when you save."
 					title="Lives in"
 				>
 					<ChannelPicker
@@ -299,7 +299,7 @@ export function AgentCapabilities({
 				description={
 					blocked ??
 					(channelChanged
-						? `Comp AI joins #${to}. It stays in #${from} until you remove it.`
+						? `Oximy joins #${to}. It stays in #${from} until you remove it.`
 						: "The old version stays in the history.")
 				}
 				open={dirty}

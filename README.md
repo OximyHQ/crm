@@ -8,13 +8,13 @@
 </p>
 
 <p align="center">
-  <img alt="stars" height="21" src="https://afterglow.watch/badge/trycompai/crm">
+  <img alt="stars" height="21" src="https://afterglow.watch/badge/OximyHQ/crm">
 </p>
 
 <h1 align="center">CRM</h1>
 
 <p align="center">
-  <strong>Comp AI CRM is an open source, CRM designed for AI agents.</strong><br>
+  <strong>Oximy CRM is an open source, CRM designed for AI agents.</strong><br>
   Agentic-first CRM.
 </p>
 
@@ -190,7 +190,7 @@ Written up where the work happens, not in a style guide:
 You need [Bun](https://bun.com) and Docker.
 
 ```sh
-git clone https://github.com/trycompai/crm.git && cd crm
+git clone https://github.com/OximyHQ/crm.git && cd crm
 cp .env.example .env          # then fill in the values below
 bun install
 
@@ -321,7 +321,7 @@ short version:
 | --- | --- |
 | `bun run dev` | Prepare the local database, then run everything in dependency-aware watch mode |
 | `bun run build` | Build all apps and packages |
-| `bun run test` | Run the test suite |
+| `bun run test` | Run the test suite, or skip it when `TEST_DATABASE_URL` is absent |
 | `bun run check-types` | `tsc --noEmit` everywhere |
 | `bun run lint` / `format` | [Biome](https://biomejs.dev) |
 | `bun run db:migrate` | Create and apply a migration |
