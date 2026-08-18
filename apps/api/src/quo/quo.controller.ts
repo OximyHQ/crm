@@ -8,6 +8,7 @@ import {
 	ForbiddenException,
 	Headers,
 	HttpCode,
+	Logger,
 	Post,
 	Req,
 	ServiceUnavailableException,
@@ -21,6 +22,8 @@ import { QUO } from "./quo-config";
 
 @Controller("api/integrations/quo")
 export class QuoController {
+	private readonly logger = new Logger(QuoController.name);
+
 	constructor(
 		@InjectDatabase() private readonly db: Db,
 		private readonly agent: AgentTriggerService,
@@ -61,7 +64,17 @@ export class QuoController {
 		}
 
 		const event = schemas.quo.webhookEvent.safeParse(parseJson(rawBody));
-		if (!event.success || event.data.id !== webhookId) {
+		if (!event.success) {
+			this.logger.warn({
+				webhookId,
+				issues: event.error.issues.map((issue) => ({
+					code: issue.code,
+					path: issue.path.join("."),
+				})),
+			});
+			throw new BadRequestException("The Quo webhook payload is invalid.");
+		}
+		if (event.data.id !== webhookId) {
 			throw new BadRequestException("The Quo webhook payload is invalid.");
 		}
 

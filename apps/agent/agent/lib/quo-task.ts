@@ -35,8 +35,8 @@ type Description = {
 	occurredAt: Date;
 	completedAt?: Date | null;
 	durationSeconds?: number | null;
-	sourceUrl: string;
-	providerPhoneNumberId: string;
+	sourceUrl?: string;
+	providerPhoneNumberId?: string;
 	providerUserId?: string | null;
 	externalPhones: string[];
 	providerContactIds: string[];
