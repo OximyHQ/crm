@@ -27,6 +27,7 @@ import { MailboxModule } from "./mailbox/mailbox.module";
 import { McpModule } from "./mcp/mcp.module";
 import { MicrosoftModule } from "./microsoft/microsoft.module";
 import { QuoModule } from "./quo/quo.module";
+import { QUO } from "./quo/quo-config";
 import { SearchModule } from "./search/search.module";
 import { SettingsModule } from "./settings/settings.module";
 import { SlackModule } from "./slack/slack.module";
@@ -49,7 +50,14 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		AppCacheModule,
 		DatabaseModule,
 		CrmModule,
-		BetterAuthModule.forRoot({ auth, middleware: logAuthRoute }),
+		BetterAuthModule.forRoot({
+			auth,
+			middleware: logAuthRoute,
+			bodyParser: {
+				rawBody: true,
+				json: { limit: `${QUO.webhook.maxBodyBytes}b` },
+			},
+		}),
 		AuthModule,
 		HealthModule,
 		TrpcModule,
