@@ -74,10 +74,6 @@ export class QuoController {
 			});
 			throw new BadRequestException("The Quo webhook payload is invalid.");
 		}
-		if (event.data.id !== webhookId) {
-			throw new BadRequestException("The Quo webhook payload is invalid.");
-		}
-
 		await this.agent.quoEventRequested(event.data);
 		return { accepted: true };
 	}

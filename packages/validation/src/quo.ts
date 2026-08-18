@@ -98,7 +98,7 @@ const callResource = z.object({
 	completedAt: z.iso.datetime().nullable().optional(),
 	updatedAt: z.iso.datetime().optional(),
 	duration: z.number().nonnegative().nullable().optional(),
-	status: z.string(),
+	status: z.string().optional(),
 	hasVoicemail: z.boolean().optional(),
 });
 
