@@ -185,4 +185,108 @@ describe("Quo webhook", () => {
 			expect(schemas.quo.webhookEvent.safeParse(event).success).toBe(true);
 		}
 	});
+
+	it("parses Quo API webhook payloads", () => {
+		const events = [
+			{
+				...base,
+				object: "event",
+				type: "call.completed",
+				data: {
+					object: {
+						id: "AC123",
+						object: "call",
+						answeredAt: base.createdAt,
+						completedAt: base.createdAt,
+						createdAt: base.createdAt,
+						direction: "outgoing",
+						duration: 42,
+						phoneNumberId: "PN123",
+						participants: ["+14155550100"],
+						status: "completed",
+						userId: "US123",
+						contactIds: ["CT123"],
+					},
+				},
+			},
+			{
+				...base,
+				object: "event",
+				type: "call.summary.completed",
+				data: {
+					object: {
+						object: "callSummary",
+						callId: "AC123",
+						status: "completed",
+						summary: ["Discussed renewal."],
+						nextSteps: ["Send proposal."],
+						contactIds: ["CT123"],
+					},
+				},
+			},
+			{
+				...base,
+				object: "event",
+				type: "call.recording.completed",
+				data: {
+					object: {
+						id: "AC123",
+						object: "call",
+						answeredAt: base.createdAt,
+						completedAt: base.createdAt,
+						createdAt: base.createdAt,
+						direction: "outgoing",
+						duration: 42,
+						phoneNumberId: "PN123",
+						participants: ["+14155550100"],
+						status: "completed",
+						userId: "US123",
+						contactIds: ["CT123"],
+						media: [
+							{
+								url: "https://example.com/recording.mp3",
+								type: "audio/mpeg",
+								duration: 42,
+							},
+						],
+					},
+				},
+			},
+			{
+				...base,
+				object: "event",
+				type: "call.transcript.completed",
+				data: {
+					object: {
+						object: "callTranscript",
+						callId: "AC123",
+						createdAt: base.createdAt,
+						dialogue: [
+							{
+								content: "Hello",
+								start: 0,
+								end: 1,
+								identifier: "+14155550100",
+								userId: "US123",
+							},
+						],
+						duration: 42,
+						status: "completed",
+						contactIds: ["CT123"],
+					},
+				},
+			},
+		];
+
+		for (const event of events) {
+			expect(schemas.quo.webhookEvent.safeParse(event).success).toBe(true);
+		}
+
+		const call = schemas.quo.webhookEvent.parse(events[0]);
+		expect(call.type).toBe("call.completed");
+		if (call.type !== "call.completed")
+			throw new Error("Expected a call event.");
+		expect(call.data.context.phoneNumberId).toBe("PN123");
+		expect(call.data.context.participants.external).toEqual(["+14155550100"]);
+	});
 });
