@@ -1,5 +1,7 @@
 import type { IncomingMessage } from "node:http";
 
+type RawBodyRequest = IncomingMessage & { rawBody?: Buffer };
+
 export function parseJson(value: string): unknown {
 	try {
 		return JSON.parse(value) as unknown;
@@ -9,9 +11,16 @@ export function parseJson(value: string): unknown {
 }
 
 export async function readBody(
-	request: IncomingMessage,
+	request: RawBodyRequest,
 	limit: number,
 ): Promise<string | null> {
+	if (request.rawBody) {
+		return request.rawBody.length <= limit
+			? request.rawBody.toString("utf8")
+			: null;
+	}
+	if (request.readableEnded) return null;
+
 	return new Promise((resolve) => {
 		const chunks: Buffer[] = [];
 		let size = 0;
@@ -23,14 +32,15 @@ export async function readBody(
 			resolve(value);
 		};
 
-		request.on("data", (chunk: Buffer) => {
-			size += chunk.length;
+		request.on("data", (chunk: Buffer | string) => {
+			const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+			size += buffer.length;
 			if (size > limit) {
 				request.destroy();
 				finish(null);
 				return;
 			}
-			chunks.push(chunk);
+			chunks.push(buffer);
 		});
 		request.on("end", () => finish(Buffer.concat(chunks).toString("utf8")));
 		request.on("error", () => finish(null));
