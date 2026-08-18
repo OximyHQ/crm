@@ -15,6 +15,7 @@ import type { RouterOutputs } from "@/lib/trpc/types";
 import { ActivityIcon } from "./activity-icon";
 import { EmailThreadEntry } from "./email-thread-entry";
 import { MeetingEntry } from "./meeting-entry";
+import { QuoActivityDetails } from "./quo-activity-details";
 import type { TimelineAnchor } from "./timeline";
 
 export type TimelineEntryData =
@@ -165,6 +166,19 @@ export function TimelineEntry({
 					>
 						Open in Granola
 					</a>
+				) : null}
+
+				{entry.communication ? (
+					<QuoActivityDetails
+						url={entry.communication.sourceUrl}
+						status={entry.communication.status}
+						direction={entry.communication.direction}
+						duration={entry.communication.durationSeconds}
+						recordings={entry.communication.recordings}
+						nextSteps={entry.communication.nextSteps}
+						transcript={entry.communication.transcript}
+						phoneNumbers={entry.communication.phoneNumbers}
+					/>
 				) : null}
 
 				{entry.emailThread ? (

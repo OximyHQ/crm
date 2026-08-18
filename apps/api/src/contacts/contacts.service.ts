@@ -7,6 +7,7 @@ import {
 	Prisma as PrismaNamespace,
 	type RecordSource,
 } from "@crm/db";
+import { normalizePhone } from "@crm/db/phones";
 import {
 	ConflictException,
 	Injectable,
@@ -276,6 +277,8 @@ export class ContactsService {
 
 	async create(input: ContactCreateInput) {
 		const email = normalizeEmail(input.email ?? "");
+		const phone = blankToNull(input.phone ?? "");
+		const phoneE164 = normalizePhone(phone);
 
 		if (email) {
 			const existing = await this.db.contact.findFirst({
@@ -305,7 +308,17 @@ export class ContactsService {
 					firstName: input.firstName.trim(),
 					lastName: blankToNull(input.lastName ?? ""),
 					email,
-					phone: blankToNull(input.phone ?? ""),
+					phone,
+					phones: phoneE164
+						? {
+								create: {
+									value: phone as string,
+									e164: phoneE164,
+									primary: true,
+									source: "CRM",
+								},
+							}
+						: undefined,
 					title: blankToNull(input.title ?? ""),
 					companyId,
 					ownerId: input.ownerId ?? null,
@@ -339,6 +352,7 @@ export class ContactsService {
 			contact.id,
 			"Added by a rep, with nothing on the record yet",
 		);
+		await this.agent.quoContactSyncRequested?.(contact.id);
 
 		return {
 			id: contact.id,
@@ -357,6 +371,11 @@ export class ContactsService {
 		try {
 			deleted = await this.db.$transaction(async (tx) => {
 				const targets = await this.stamp.targetsOf({ contactId: id }, tx);
+				const communications = await tx.communicationParticipant.findMany({
+					where: { contactId: id },
+					select: { communicationId: true },
+					distinct: ["communicationId"],
+				});
 
 				await tx.agentTask.deleteMany({ where: { contactId: id } });
 				await tx.agentEvent.deleteMany({ where: { contactId: id } });
@@ -364,6 +383,12 @@ export class ContactsService {
 				const contact = await tx.contact.delete({
 					where: { id },
 					select: { firstName: true, lastName: true, email: true },
+				});
+				await tx.communication.updateMany({
+					where: {
+						id: { in: communications.map((item) => item.communicationId) },
+					},
+					data: { matchStatus: "NEEDS_REVIEW" },
 				});
 
 				const name = [contact.firstName, contact.lastName]
@@ -429,12 +454,12 @@ export class ContactsService {
 		}
 
 		try {
-			return await this.db.$transaction(async (tx) => {
+			const updated = await this.db.$transaction(async (tx) => {
 				if (input.fields) {
 					await this.fields.applyValues(tx, "CONTACT", id, input.fields);
 				}
 
-				const updated = await tx.contact.update({
+				const updatedContact = await tx.contact.update({
 					where: { id },
 					data,
 					select: { id: true, firstName: true, lastName: true },
@@ -444,8 +469,30 @@ export class ContactsService {
 					await this.allowAgain(tx, data.email);
 				}
 
-				return updated;
+				if (input.phone !== undefined) {
+					await tx.contactPhone.deleteMany({
+						where: { contactId: id, primary: true },
+					});
+					const e164 = normalizePhone(input.phone);
+					if (e164) {
+						await tx.contactPhone.upsert({
+							where: { contactId_e164: { contactId: id, e164 } },
+							create: {
+								contactId: id,
+								value: input.phone,
+								e164,
+								primary: true,
+								source: "CRM",
+							},
+							update: { value: input.phone, primary: true },
+						});
+					}
+				}
+
+				return updatedContact;
 			});
+			await this.agent.quoContactSyncRequested?.(id);
+			return updated;
 		} catch (error) {
 			throw this.translate(error, id);
 		}

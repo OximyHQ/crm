@@ -4,6 +4,7 @@ import {
 	isCurrencyCode,
 	normalizeCurrency,
 } from "./currency";
+import { Prisma } from "./generated/prisma/client";
 
 export const SETTINGS_ID = "app";
 
@@ -214,6 +215,90 @@ export async function clearGranolaConnection(db: Db): Promise<void> {
 			granolaConnectedAt: null,
 			granolaLastSyncedAt: null,
 			granolaLastError: null,
+		},
+	});
+}
+
+export type QuoConnection = {
+	apiKey: string;
+	webhookId: string;
+	webhookSecret: string;
+	phoneNumbers: unknown;
+	users: unknown;
+	connectedAt: Date;
+};
+
+export async function readQuoConnection(db: Db): Promise<QuoConnection | null> {
+	const row = await db.appSetting.findUnique({
+		where: { id: SETTINGS_ID },
+		select: {
+			quoApiKey: true,
+			quoWebhookId: true,
+			quoWebhookSecret: true,
+			quoPhoneNumbers: true,
+			quoUsers: true,
+			quoConnectedAt: true,
+		},
+	});
+	if (
+		!row?.quoApiKey ||
+		!row.quoWebhookId ||
+		!row.quoWebhookSecret ||
+		!row.quoConnectedAt
+	) {
+		return null;
+	}
+
+	return {
+		apiKey: row.quoApiKey,
+		webhookId: row.quoWebhookId,
+		webhookSecret: row.quoWebhookSecret,
+		phoneNumbers: row.quoPhoneNumbers,
+		users: row.quoUsers,
+		connectedAt: row.quoConnectedAt,
+	};
+}
+
+export async function writeQuoConnection(
+	db: Db,
+	connection: Omit<QuoConnection, "connectedAt">,
+): Promise<void> {
+	const connectedAt = new Date();
+	await db.appSetting.upsert({
+		where: { id: SETTINGS_ID },
+		create: {
+			id: SETTINGS_ID,
+			quoApiKey: connection.apiKey,
+			quoWebhookId: connection.webhookId,
+			quoWebhookSecret: connection.webhookSecret,
+			quoPhoneNumbers: connection.phoneNumbers as Prisma.InputJsonValue,
+			quoUsers: connection.users as Prisma.InputJsonValue,
+			quoConnectedAt: connectedAt,
+		},
+		update: {
+			quoApiKey: connection.apiKey,
+			quoWebhookId: connection.webhookId,
+			quoWebhookSecret: connection.webhookSecret,
+			quoPhoneNumbers: connection.phoneNumbers as Prisma.InputJsonValue,
+			quoUsers: connection.users as Prisma.InputJsonValue,
+			quoConnectedAt: connectedAt,
+			quoLastError: null,
+		},
+	});
+}
+
+export async function clearQuoConnection(db: Db): Promise<void> {
+	await db.appSetting.updateMany({
+		where: { id: SETTINGS_ID },
+		data: {
+			quoApiKey: null,
+			quoWebhookId: null,
+			quoWebhookSecret: null,
+			quoPhoneNumbers: Prisma.DbNull,
+			quoUsers: Prisma.DbNull,
+			quoConnectedAt: null,
+			quoLastSyncedAt: null,
+			quoLastError: null,
 		},
 	});
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import DocumentAudio from "@carbon/icons-react/es/DocumentAudio";
+import Phone from "@carbon/icons-react/es/Phone";
 import Plug from "@carbon/icons-react/es/Plug";
 import DocusignLogo from "@crm/ui/components/brand-logos/docusign";
 import GoogleLogo from "@crm/ui/components/brand-logos/google";
@@ -72,6 +73,14 @@ export function AddConnectionDialog({
 							name="Granola"
 							description="Bring customer call summaries into existing deals"
 							href={`/${slug}/settings/connections/granola`}
+						/>
+					) : null}
+					{!connected.includes("Quo") ? (
+						<CatalogRow
+							logo={Phone}
+							name="Quo"
+							description="Bring account calls, messages and transcripts into the CRM"
+							href={`/${slug}/settings/connections/quo`}
 						/>
 					) : null}
 					<CatalogRow

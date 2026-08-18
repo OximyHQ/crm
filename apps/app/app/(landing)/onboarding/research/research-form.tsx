@@ -1,6 +1,5 @@
 "use client";
 
-import { CONTEXT_DEV_SIGNUP_URL } from "@crm/db/settings";
 import { Button } from "@crm/ui/components/button";
 import {
 	Field,
@@ -16,7 +15,7 @@ import { useId } from "react";
 import { toast } from "sonner";
 import { useTRPC } from "@/lib/trpc/client";
 
-export function ResearchForm() {
+export function ResearchForm({ signupUrl }: { signupUrl: string }) {
 	const trpc = useTRPC();
 	const router = useRouter();
 
@@ -59,7 +58,7 @@ export function ResearchForm() {
 					<FieldDescription>
 						Don't have a Context API key?{" "}
 						<a
-							href={CONTEXT_DEV_SIGNUP_URL}
+							href={signupUrl}
 							target="_blank"
 							rel="noreferrer"
 							className="underline underline-offset-4 hover:text-foreground"

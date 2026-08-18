@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ActivitiesModule } from "../activities/activities.module";
 import { AgentModule } from "../agent/agent.module";
+import { CommunicationsModule } from "../communications/communications.module";
 import { CompaniesModule } from "../companies/companies.module";
 import { ContactsModule } from "../contacts/contacts.module";
 import { ConversationsModule } from "../conversations/conversations.module";
@@ -17,6 +18,7 @@ import { McpService } from "./mcp.service";
 		ActivitiesModule,
 		AgentModule,
 		CompaniesModule,
+		CommunicationsModule,
 		ContactsModule,
 		DealsModule,
 		DashboardModule,

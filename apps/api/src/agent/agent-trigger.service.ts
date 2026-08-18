@@ -2,6 +2,7 @@ import { type Db, type FieldEntity, Prisma } from "@crm/db";
 import { PRIORITY } from "@crm/db/agent-tasks";
 import { CRM_EVENT_CATALOG, type CrmEventType } from "@crm/db/crm-events";
 import { lockIdempotencyKey } from "@crm/db/idempotency";
+import type { QuoWebhookEvent } from "@crm/validation";
 import { Injectable, Logger } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 import { AGENT_DISPATCH } from "./agent-dispatch.config";
@@ -138,6 +139,70 @@ export class AgentTriggerService {
 			},
 			true,
 		);
+	}
+
+	async quoEventRequested(event: QuoWebhookEvent): Promise<void> {
+		let queued = false;
+		await this.db.$transaction(async (tx) => {
+			await lockIdempotencyKey(tx, `quo-event:${event.id}`);
+			const stored = await tx.quoWebhookEvent.findUnique({
+				where: { id: event.id },
+				select: { processedAt: true },
+			});
+			if (stored?.processedAt) return;
+
+			if (!stored) {
+				await tx.quoWebhookEvent.create({
+					data: {
+						id: event.id,
+						type: event.type,
+						payload: event as Prisma.InputJsonValue,
+						occurredAt: new Date(event.createdAt),
+					},
+				});
+			}
+
+			const pending = await tx.agentTask.findFirst({
+				where: { kind: "quo-event", subject: event.id, finishedAt: null },
+				select: { id: true },
+			});
+			if (pending) return;
+
+			await tx.agentTask.create({
+				data: {
+					kind: "quo-event",
+					subject: event.id,
+					reason: `Process Quo event ${event.type}`,
+					payload: event as Prisma.InputJsonValue,
+					priority: PRIORITY.quoEvent,
+					budget: 1,
+					dueAt: new Date(),
+				},
+			});
+			queued = true;
+		});
+
+		if (queued) this.poke();
+	}
+
+	async quoSyncRequested(): Promise<void> {
+		await this.enqueue({
+			kind: "quo-sync",
+			reason: "Reconcile CRM and Quo contacts",
+			priority: PRIORITY.quoSync,
+			budget: 1,
+		});
+	}
+
+	async quoContactSyncRequested(contactId: string): Promise<void> {
+		await this.enqueue({
+			contactId,
+			kind: "quo-contact-sync",
+			reason: `Sync contact ${contactId} to Quo`,
+			priority: PRIORITY.quoContactSync,
+			budget: 1,
+			payload: { contactId },
+		});
 	}
 
 	async withTasks<Result>(

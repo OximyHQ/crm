@@ -1,4 +1,5 @@
 import DocumentAudio from "@carbon/icons-react/es/DocumentAudio";
+import Phone from "@carbon/icons-react/es/Phone";
 import GoogleLogo from "@crm/ui/components/brand-logos/google";
 import MicrosoftLogo from "@crm/ui/components/brand-logos/microsoft";
 import SlackLogo from "@crm/ui/components/brand-logos/slack";
@@ -31,11 +32,12 @@ async function ConnectionsSettingsPageContent({
 	const [{ slug }, query] = await Promise.all([params, searchParams]);
 	const queryClient = getServerQueryClient();
 	const trpc = getServerTrpc();
-	const [google, microsoft, slack, granola] = await Promise.all([
+	const [google, microsoft, slack, granola, quo] = await Promise.all([
 		queryClient.fetchQuery(trpc.google.status.queryOptions()),
 		queryClient.fetchQuery(trpc.microsoft.status.queryOptions()),
 		queryClient.fetchQuery(trpc.slack.status.queryOptions()),
 		queryClient.fetchQuery(trpc.granola.status.queryOptions()),
+		queryClient.fetchQuery(trpc.quo.status.queryOptions()),
 	]);
 	const rows = [
 		...(google.linked
@@ -91,6 +93,21 @@ async function ConnectionsSettingsPageContent({
 					},
 				]
 			: []),
+		...(quo.connected
+			? [
+					{
+						name: "Quo",
+						status:
+							quo.pending > 0
+								? `Connected · ${quo.pending} waiting`
+								: "Connected",
+						bringsIn: "Calls, messages, recordings, summaries and transcripts",
+						sends: "Calls through your device dialer",
+						href: `/${slug}/settings/connections/quo`,
+						logo: Phone,
+					},
+				]
+			: []),
 	];
 
 	return (
@@ -132,6 +149,12 @@ async function ConnectionsSettingsPageContent({
 						</p>
 					</div>
 					<div className="flex flex-col divide-y rounded-lg border bg-card px-(--spacing-block-inline)">
+						<StarterRow
+							logo={Phone}
+							name="Quo"
+							description="Bring every account call and message into the CRM"
+							href={`/${slug}/settings/connections/quo`}
+						/>
 						<StarterRow
 							logo={GoogleLogo}
 							name="Google Workspace"

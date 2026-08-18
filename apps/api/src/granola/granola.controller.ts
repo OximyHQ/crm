@@ -14,6 +14,7 @@ import {
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { InjectDatabase } from "../database/database.constants";
+import { parseJson, readBody } from "../integrations/request-body";
 import { granolaWebhookEvent } from "./granola.contracts";
 import { GRANOLA } from "./granola-config";
 import { verifyGranolaWebhook } from "./granola-webhook";
@@ -69,41 +70,4 @@ export class GranolaController {
 
 		return { accepted: true };
 	}
-}
-
-function parseJson(value: string): unknown {
-	try {
-		return JSON.parse(value) as unknown;
-	} catch {
-		return null;
-	}
-}
-
-async function readBody(
-	request: IncomingMessage,
-	limit: number,
-): Promise<string | null> {
-	return new Promise((resolve) => {
-		const chunks: Buffer[] = [];
-		let size = 0;
-		let settled = false;
-
-		const finish = (value: string | null) => {
-			if (settled) return;
-			settled = true;
-			resolve(value);
-		};
-
-		request.on("data", (chunk: Buffer) => {
-			size += chunk.length;
-			if (size > limit) {
-				request.destroy();
-				finish(null);
-				return;
-			}
-			chunks.push(chunk);
-		});
-		request.on("end", () => finish(Buffer.concat(chunks).toString("utf8")));
-		request.on("error", () => finish(null));
-	});
 }

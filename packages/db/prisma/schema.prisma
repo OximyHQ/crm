@@ -23,14 +23,16 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
-  ownedCompanies Company[]           @relation("CompanyOwner")
-  ownedContacts  Contact[]           @relation("ContactOwner")
-  ownedDeals     Deal[]              @relation("DealOwner")
-  activities     Activity[]          @relation("ActivityAuthor")
-  mailboxSyncs   MailboxSync[]
-  factDecisions  ContactFact[]       @relation("FactDecider")
-  conversations  AgentConversation[] @relation("ConversationOwner")
-  fieldValues    FieldValue[]        @relation("FieldValueUser")
+  ownedCompanies            Company[]                  @relation("CompanyOwner")
+  ownedContacts             Contact[]                  @relation("ContactOwner")
+  ownedDeals                Deal[]                     @relation("DealOwner")
+  activities                Activity[]                 @relation("ActivityAuthor")
+  communicationParticipants CommunicationParticipant[]
+  communications            Communication[]            @relation("CommunicationAuthor")
+  mailboxSyncs              MailboxSync[]
+  factDecisions             ContactFact[]              @relation("FactDecider")
+  conversations             AgentConversation[]        @relation("ConversationOwner")
+  fieldValues               FieldValue[]               @relation("FieldValueUser")
 
   createdAgentDefinitions AgentDefinition[]             @relation("AgentDefinitionCreator")
   createdAgentVersions    AgentVersion[]                @relation("AgentVersionCreator")
@@ -301,11 +303,47 @@ enum DealStage {
 enum ActivityType {
   NOTE
   CALL
+  MESSAGE
   EMAIL
   MEETING
   TASK
   STAGE_CHANGE
   ENRICHMENT
+}
+
+enum CommunicationKind {
+  CALL
+  MESSAGE
+}
+
+enum CommunicationDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum CommunicationMatchStatus {
+  NEEDS_REVIEW
+  MATCHED
+  IGNORED
+}
+
+enum CommunicationParticipantRole {
+  INTERNAL
+  EXTERNAL
+}
+
+enum CommunicationArtifactType {
+  RECORDING
+  VOICEMAIL
+  SUMMARY
+  NEXT_STEPS
+  TRANSCRIPT
+}
+
+enum ContactPhoneSource {
+  CRM
+  QUO
+  MANUAL
 }
 
 enum EnrichmentStatus {
@@ -499,21 +537,43 @@ model Contact {
 
   lastActivityAt DateTime?
 
-  deals           DealContact[]
-  activities      Activity[]
-  emailThreads    EmailThread[]
-  calendarEvents  CalendarEvent[]
-  eventAttendance CalendarAttendee[]
-  fieldValues     FieldValue[]
-  visitors        TrackedVisitor[]   @relation("VisitorContact")
-  submissions     FormSubmission[]   @relation("SubmissionContact")
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  deals                     DealContact[]
+  activities                Activity[]
+  emailThreads              EmailThread[]
+  calendarEvents            CalendarEvent[]
+  eventAttendance           CalendarAttendee[]
+  fieldValues               FieldValue[]
+  visitors                  TrackedVisitor[]           @relation("VisitorContact")
+  submissions               FormSubmission[]           @relation("SubmissionContact")
+  phones                    ContactPhone[]
+  communicationParticipants CommunicationParticipant[]
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
 
   @@index([companyId])
   @@index([ownerId])
   @@index([lastActivityAt])
   @@map("contact")
+}
+
+model ContactPhone {
+  id                String             @id @default(cuid())
+  contactId         String
+  contact           Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  value             String
+  e164              String
+  label             String?
+  providerContactId String?
+  primary           Boolean            @default(false)
+  source            ContactPhoneSource @default(CRM)
+  verifiedAt        DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([contactId, e164])
+  @@index([e164])
+  @@index([providerContactId])
+  @@map("contactPhone")
 }
 
 enum FactBand {
@@ -1226,6 +1286,8 @@ model Activity {
   granolaNoteId      String?        @unique
   granolaUrl         String?
   granolaMatchStatus String?
+  communicationId    String?        @unique
+  communication      Communication? @relation(fields: [communicationId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1236,6 +1298,92 @@ model Activity {
   @@index([dueAt])
   @@index([createdById])
   @@map("activity")
+}
+
+model Communication {
+  id                     String                     @id @default(cuid())
+  provider               String
+  externalId             String
+  externalConversationId String?
+  kind                   CommunicationKind
+  direction              CommunicationDirection?
+  status                 String?
+  body                   String?
+  occurredAt             DateTime
+  completedAt            DateTime?
+  durationSeconds        Float?
+  sourceUrl              String?
+  providerPhoneNumberId  String?
+  providerUserId         String?
+  matchStatus            CommunicationMatchStatus   @default(NEEDS_REVIEW)
+  createdById            String?
+  createdBy              User?                      @relation("CommunicationAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  participants           CommunicationParticipant[]
+  artifacts              CommunicationArtifact[]
+  activity               Activity?
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+
+  @@unique([provider, externalId])
+  @@index([externalConversationId])
+  @@index([kind, occurredAt])
+  @@index([matchStatus, occurredAt])
+  @@index([createdById, occurredAt])
+  @@map("communication")
+}
+
+model CommunicationParticipant {
+  id                String                       @id @default(cuid())
+  communicationId   String
+  communication     Communication                @relation(fields: [communicationId], references: [id], onDelete: Cascade)
+  role              CommunicationParticipantRole
+  phoneE164         String?
+  providerContactId String?
+  displayName       String?
+  contactId         String?
+  contact           Contact?                     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  userId            String?
+  user              User?                        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+
+  @@unique([communicationId, role, phoneE164])
+  @@index([phoneE164])
+  @@index([contactId, communicationId])
+  @@index([userId, communicationId])
+  @@map("communicationParticipant")
+}
+
+model CommunicationArtifact {
+  id              String                    @id @default(cuid())
+  communicationId String
+  communication   Communication             @relation(fields: [communicationId], references: [id], onDelete: Cascade)
+  type            CommunicationArtifactType
+  key             String                    @default("primary")
+  text            String?
+  payload         Json?
+  sourceUrl       String?
+  storedUrl       String?
+  durationSeconds Float?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  @@unique([communicationId, type, key])
+  @@index([type, createdAt])
+  @@map("communicationArtifact")
+}
+
+model QuoWebhookEvent {
+  id          String    @id
+  type        String
+  payload     Json
+  occurredAt  DateTime
+  processedAt DateTime?
+  lastError   String?
+  createdAt   DateTime  @default(now())
+
+  @@index([processedAt])
+  @@map("quoWebhookEvent")
 }
 
 enum GoogleSyncStatus {
@@ -1412,6 +1560,15 @@ model AppSetting {
   granolaConnectedAt       DateTime?
   granolaLastSyncedAt      DateTime?
   granolaLastError         String?
+
+  quoApiKey        String?
+  quoWebhookId     String?
+  quoWebhookSecret String?
+  quoPhoneNumbers  Json?
+  quoUsers         Json?
+  quoConnectedAt   DateTime?
+  quoLastSyncedAt  DateTime?
+  quoLastError     String?
 
   trackingSiteId           String? @unique
   trackingCrossDomain      Boolean @default(true)

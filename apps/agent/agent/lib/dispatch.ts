@@ -8,6 +8,8 @@ import { markRunning, settle } from "./enrichment";
 import { runGranolaBackfill, runGranolaNoteTask } from "./granola-task";
 import { collapsing, runLimited } from "./pool";
 import { runPortrait } from "./portrait";
+import { runQuoContactSyncTask, runQuoSyncTask } from "./quo-contact-sync";
+import { runQuoEventTask } from "./quo-task";
 import { runSlackChannelJoin } from "./slack-join-task";
 import { runSlackPeopleMatch } from "./slack-people";
 import {
@@ -154,6 +156,21 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 
 	if (task.kind === "granola-note") {
 		await completeTask(task.id, await runGranolaNoteTask(task.payload));
+		return;
+	}
+
+	if (task.kind === "quo-event") {
+		await completeTask(task.id, await runQuoEventTask(task.payload));
+		return;
+	}
+
+	if (task.kind === "quo-sync") {
+		await completeTask(task.id, await runQuoSyncTask());
+		return;
+	}
+
+	if (task.kind === "quo-contact-sync") {
+		await completeTask(task.id, await runQuoContactSyncTask(task.payload));
 		return;
 	}
 

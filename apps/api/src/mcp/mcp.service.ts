@@ -30,6 +30,11 @@ import {
 	agentUpdateInput,
 } from "../agent/agents.contracts";
 import {
+	communicationListInput,
+	communicationResolveInput,
+} from "../communications/communications.contracts";
+import { CommunicationsService } from "../communications/communications.service";
+import {
 	companyBulkInput,
 	companyBulkOwnerInput,
 	companyCreateInput,
@@ -136,6 +141,7 @@ export class McpService {
 		@InjectDatabase() private readonly db: Db,
 		private readonly companies: CompaniesService,
 		private readonly contacts: ContactsService,
+		private readonly communications: CommunicationsService,
 		private readonly deals: DealsService,
 		private readonly activities: ActivitiesService,
 		private readonly dashboard: DashboardService,
@@ -244,6 +250,36 @@ export class McpService {
 				annotations: { readOnlyHint: true },
 			},
 			async ({ id }) => result(await this.contacts.byId(id)),
+		);
+		server.registerTool(
+			"list_communications",
+			{
+				description:
+					"List CRM calls and messages. Results include participants and review status, but omit full transcripts.",
+				inputSchema: communicationListInput,
+				annotations: { readOnlyHint: true },
+			},
+			async (input) => result(await this.communications.list(input)),
+		);
+		server.registerTool(
+			"search_communications",
+			{
+				description:
+					"Search CRM calls, messages, participants, phone numbers, summaries, and transcripts.",
+				inputSchema: communicationListInput.extend({ q: z.string().min(1) }),
+				annotations: { readOnlyHint: true },
+			},
+			async (input) => result(await this.communications.list(input)),
+		);
+		server.registerTool(
+			"get_communication",
+			{
+				description:
+					"Get one CRM communication with full recordings, summary, next steps, and transcript.",
+				inputSchema: id,
+				annotations: { readOnlyHint: true },
+			},
+			async ({ id }) => result(await this.communications.byId(id)),
 		);
 		server.registerTool(
 			"list_deals",
@@ -373,6 +409,16 @@ export class McpService {
 				annotations: { readOnlyHint: false, idempotentHint: false },
 			},
 			async (input) => result(await this.contacts.create(input)),
+		);
+		server.registerTool(
+			"resolve_communication",
+			{
+				description:
+					"Attach an unresolved communication number to a contact, or ignore one communication.",
+				inputSchema: communicationResolveInput,
+				annotations: { readOnlyHint: false, idempotentHint: true },
+			},
+			async (input) => result(await this.communications.resolve(input)),
 		);
 		server.registerTool(
 			"update_contact",

@@ -7,6 +7,7 @@ import { AgentModule } from "./agent/agent.module";
 import { AuthModule } from "./auth/auth.module";
 import { BackfillModule } from "./backfill/backfill.module";
 import { AppCacheModule } from "./cache/cache.module";
+import { CommunicationsModule } from "./communications/communications.module";
 import { CompaniesModule } from "./companies/companies.module";
 import { validateEnv } from "./config/env.validation";
 import { ContactsModule } from "./contacts/contacts.module";
@@ -25,6 +26,7 @@ import { logAuthRoute } from "./logging/request-logger.middleware";
 import { MailboxModule } from "./mailbox/mailbox.module";
 import { McpModule } from "./mcp/mcp.module";
 import { MicrosoftModule } from "./microsoft/microsoft.module";
+import { QuoModule } from "./quo/quo.module";
 import { SearchModule } from "./search/search.module";
 import { SettingsModule } from "./settings/settings.module";
 import { SlackModule } from "./slack/slack.module";
@@ -53,6 +55,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		TrpcModule,
 		UsersModule,
 		CompaniesModule,
+		CommunicationsModule,
 		ContactsModule,
 		ConversationsModule,
 		CurrencyModule,
@@ -66,6 +69,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		GoogleModule,
 		GranolaModule,
 		MicrosoftModule,
+		QuoModule,
 		McpModule,
 		SyncModule,
 		SettingsModule,
