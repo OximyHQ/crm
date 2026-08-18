@@ -77,8 +77,10 @@ describe("Quo client", () => {
 				return new Response(null, { status: 204 });
 			}
 			return Response.json({
-				id: "new-webhook",
-				key: "whsec_c2lnbmluZy1zZWNyZXQ=",
+				data: {
+					id: "new-webhook",
+					key: "whsec_c2lnbmluZy1zZWNyZXQ=",
+				},
 			});
 		}) as typeof fetch;
 
