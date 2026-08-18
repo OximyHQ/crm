@@ -35,7 +35,10 @@ const links = { quo: "https://my.quo.com/inbox/CN123" };
 describe("Quo webhook", () => {
 	it("accepts a current Standard Webhooks signature", () => {
 		const secret = "whsec_c2lnbmluZy1zZWNyZXQ=";
-		const rawBody = JSON.stringify({ type: "message.received" });
+		const rawBody = JSON.stringify({
+			id: "EV_payload_event_1",
+			type: "message.received",
+		});
 		const timestamp = "1786989600";
 		const signature = createHmac(
 			"sha256",
@@ -288,5 +291,24 @@ describe("Quo webhook", () => {
 			throw new Error("Expected a call event.");
 		expect(call.data.context.phoneNumberId).toBe("PN123");
 		expect(call.data.context.participants.external).toEqual(["+14155550100"]);
+	});
+
+	it("parses a call artifact without a status", () => {
+		const event = {
+			...base,
+			type: "call.recording.completed",
+			data: {
+				context: callContext,
+				links,
+				resource: {
+					id: "AC123",
+					direction: "outgoing",
+					createdAt: base.createdAt,
+					recordings: [],
+				},
+			},
+		};
+
+		expect(schemas.quo.webhookEvent.safeParse(event).success).toBe(true);
 	});
 });
