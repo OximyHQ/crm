@@ -15,6 +15,7 @@ import { Field, FieldLabel } from "@crm/ui/components/field";
 import { Icon } from "@crm/ui/components/icon";
 import { Input } from "@crm/ui/components/input";
 import { useId, useState } from "react";
+import { quoWebDialerUrl } from "@/lib/quo-web-dialer";
 
 export function CallNumberDialog() {
 	const [open, setOpen] = useState(false);
@@ -34,8 +35,8 @@ export function CallNumberDialog() {
 				<DialogHeader>
 					<DialogTitle>Call any number</DialogTitle>
 					<DialogDescription>
-						Your device opens Quo as the dialer. Unknown numbers enter review
-						after the call.
+						Quo opens in your browser with this number ready. Unknown numbers
+						enter review after the call.
 					</DialogDescription>
 				</DialogHeader>
 				<Field>
@@ -55,12 +56,17 @@ export function CallNumberDialog() {
 					</Button>
 					{dialable.length >= 8 ? (
 						<Button asChild>
-							<a href={`tel:${dialable}`} onClick={() => setOpen(false)}>
-								Open Quo and call
+							<a
+								href={quoWebDialerUrl(dialable)}
+								target="_blank"
+								rel="noreferrer"
+								onClick={() => setOpen(false)}
+							>
+								Open Quo web dialer
 							</a>
 						</Button>
 					) : (
-						<Button disabled>Open Quo and call</Button>
+						<Button disabled>Open Quo web dialer</Button>
 					)}
 				</DialogFooter>
 			</DialogContent>

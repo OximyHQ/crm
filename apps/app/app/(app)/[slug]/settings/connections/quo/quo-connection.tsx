@@ -253,14 +253,13 @@ function ConnectedQuo({ slug, status }: { slug: string; status: QuoStatus }) {
 			) : null}
 
 			<p className="px-(--spacing-block-inline) text-muted-foreground text-xs leading-relaxed">
-				Contact phone links use your device dialer. Set Quo as the default
-				dialer for one-click calling.
+				Contact phone links open the Quo web dialer with the number ready.
 				<Link
-					href="https://support.quo.com/core-concepts/calling/click-to-call"
+					href="https://support.quo.com/core-concepts/calling/making-calls"
 					target="_blank"
 					className="ml-1 font-medium text-foreground underline underline-offset-4"
 				>
-					Quo calling setup
+					Quo calling guide
 				</Link>
 			</p>
 

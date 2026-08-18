@@ -13,6 +13,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 import { LocalDateTime } from "@/components/local-date-time";
+import { quoWebDialerUrl } from "@/lib/quo-web-dialer";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
@@ -80,9 +81,9 @@ function CommunicationContent({
 				<div className="flex flex-wrap gap-2">
 					{phone ? (
 						<Button asChild variant="outline" size="sm">
-							<a href={`tel:${phone}`}>
+							<a href={quoWebDialerUrl(phone)} target="_blank" rel="noreferrer">
 								<Icon icon={Phone} data-icon="inline-start" />
-								Call again
+								Call with Quo
 							</a>
 						</Button>
 					) : null}

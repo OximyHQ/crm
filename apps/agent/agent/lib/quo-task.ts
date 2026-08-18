@@ -10,7 +10,7 @@ import { projectCommunication } from "@crm/db/communications";
 import { normalizePhone } from "@crm/db/phones";
 import { readQuoConnection } from "@crm/db/settings";
 import { type QuoWebhookEvent, schemas } from "@crm/validation";
-import { getQuoContact } from "./quo-client";
+import { getQuoContact, getQuoUser } from "./quo-client";
 
 const PROVIDER = "quo";
 const PRIMARY_ARTIFACT = "primary";
@@ -104,7 +104,11 @@ export async function fileQuoEvent(
 			},
 		},
 	});
-	const createdById = await resolveAuthor(description.providerUserId, users);
+	const createdById = await resolveAuthor(
+		description.providerUserId,
+		users,
+		apiKey,
+	);
 	const phone = description.externalPhones[0] ?? null;
 	const preservedContactId =
 		existing?.matchStatus === "MATCHED"
@@ -169,7 +173,12 @@ export async function fileQuoEvent(
 		select: { id: true },
 	});
 
-	await upsertParticipants(communication.id, description, contactId, users);
+	await upsertParticipants(
+		communication.id,
+		description,
+		contactId,
+		createdById,
+	);
 	await upsertArtifacts(communication.id, description.artifacts);
 
 	if (matchStatus === "MATCHED" && contactId) {
@@ -389,7 +398,7 @@ async function upsertParticipants(
 	communicationId: string,
 	description: Description,
 	contactId: string | null,
-	users: unknown,
+	userId: string | null,
 ): Promise<void> {
 	for (const phoneE164 of description.externalPhones) {
 		await db.communicationParticipant.upsert({
@@ -413,7 +422,6 @@ async function upsertParticipants(
 			},
 		});
 	}
-	const userId = await resolveAuthor(description.providerUserId, users);
 	if (!description.providerUserId) return;
 	const key = `user:${description.providerUserId}`;
 	const existing = await db.communicationParticipant.findFirst({
@@ -465,9 +473,14 @@ async function upsertArtifacts(
 async function resolveAuthor(
 	quoUserId: string | null | undefined,
 	value: unknown,
+	apiKey: string,
 ): Promise<string | null> {
+	if (!quoUserId) return null;
 	const users = schemas.quo.userSnapshot.array().parse(value ?? []);
-	const email = users.find((user) => user.id === quoUserId)?.email;
+	const snapshot = users.find((user) => user.id === quoUserId);
+	const remote =
+		snapshot ?? (await getQuoUser(apiKey, quoUserId).catch(() => null));
+	const email = remote?.email;
 	if (!email) return null;
 	const user = await db.user.findFirst({
 		where: { email: { equals: email, mode: "insensitive" } },

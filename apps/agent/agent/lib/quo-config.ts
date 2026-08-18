@@ -4,6 +4,7 @@ export const QUO = {
 	v1ApiBase: "https://api.quo.com/v1",
 	requestTimeoutMs: 25_000,
 	contacts: { pageSize: 50, source: "oximy-crm", label: "CRM" },
+	users: { pageSize: 50 },
 	webhook: {
 		label: "Oximy CRM activity sync",
 		events: [

@@ -22,12 +22,18 @@ const page = <Schema extends z.ZodType>(schema: Schema) =>
 		nextCursor: z.string().nullable().optional(),
 	});
 
+const userPage = z.object({
+	data: z.array(schemas.quo.userSnapshot),
+	nextPageToken: z.string().nullable(),
+});
+
 const contactPage = z.object({
 	data: z.array(schemas.quo.contactSnapshot),
 	nextPageToken: z.string().nullable(),
 });
 
 const contactReply = z.object({ data: schemas.quo.contactSnapshot });
+const userReply = z.object({ data: schemas.quo.userSnapshot });
 
 export async function createQuoConnection(
 	input: {
@@ -37,9 +43,7 @@ export async function createQuoConnection(
 	fetcher: typeof fetch = fetch,
 ) {
 	const [users, phoneNumbers, webhooks] = await Promise.all([
-		quoFetch("/users", input.apiKey, {}, fetcher).then(
-			(value) => page(schemas.quo.userSnapshot).parse(value).data,
-		),
+		listQuoUsers(input.apiKey, fetcher),
 		quoV1Fetch("/phone-numbers", input.apiKey, {}, fetcher).then(
 			(value) => page(schemas.quo.phoneNumberSnapshot).parse(value).data,
 		),
@@ -85,6 +89,36 @@ export async function createQuoConnection(
 		phoneNumbers,
 		users,
 	};
+}
+
+export async function listQuoUsers(
+	apiKey: string,
+	fetcher: typeof fetch = fetch,
+) {
+	const users: z.infer<typeof schemas.quo.userSnapshot>[] = [];
+	let pageToken: string | null = null;
+	do {
+		const search = new URLSearchParams({
+			maxResults: String(QUO.users.pageSize),
+		});
+		if (pageToken) search.set("pageToken", pageToken);
+		const response = userPage.parse(
+			await quoV1Fetch(`/users?${search}`, apiKey, {}, fetcher),
+		);
+		users.push(...response.data);
+		pageToken = response.nextPageToken;
+	} while (pageToken);
+	return users;
+}
+
+export async function getQuoUser(
+	apiKey: string,
+	id: string,
+	fetcher: typeof fetch = fetch,
+) {
+	return userReply.parse(
+		await quoV1Fetch(`/users/${encodeURIComponent(id)}`, apiKey, {}, fetcher),
+	).data;
 }
 
 export async function deleteQuoWebhook(
