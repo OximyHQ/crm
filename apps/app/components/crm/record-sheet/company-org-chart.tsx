@@ -2,11 +2,7 @@
 
 import "@xyflow/react/dist/style.css";
 
-import Add from "@carbon/icons-react/es/Add";
-import LogoLinkedin from "@carbon/icons-react/es/LogoLinkedin";
 import { Badge } from "@crm/ui/components/badge";
-import { Button } from "@crm/ui/components/button";
-import { Icon } from "@crm/ui/components/icon";
 import {
 	Background,
 	type Edge,
@@ -44,13 +40,13 @@ const LANES = [
 const CHART = {
 	laneWidth: 268,
 	leaderY: 170,
-	rowHeight: 122,
+	rowHeight: 110,
 	rootY: 0,
 } as const;
 
 type PersonDatum = {
 	person: ChartPerson;
-	onAdd: (id: string) => void;
+	onOpen: (id: string) => void;
 };
 
 type CompanyDatum = {
@@ -62,51 +58,27 @@ type CompanyFlowNode = Node<CompanyDatum, "company">;
 type ChartFlowNode = PersonFlowNode | CompanyFlowNode;
 
 function PersonNode({ data }: NodeProps<PersonFlowNode>) {
-	const { person, onAdd } = data;
+	const { person, onOpen } = data;
 	return (
-		<div className="w-60 rounded-md border bg-background px-3 py-2 shadow-xs">
+		<button
+			type="button"
+			className="w-60 cursor-pointer rounded-md border bg-background px-3 py-2 text-left shadow-xs"
+			onClick={() => onOpen(person.id)}
+		>
 			<Handle type="target" position={Position.Top} isConnectable={false} />
-			<div className="flex min-w-0 items-center gap-2">
-				<span className="min-w-0 flex-1">
-					<span className="block truncate text-sm font-medium">
-						{person.fullName}
-					</span>
-					<span className="block truncate text-xs text-muted-foreground">
-						{person.title}
-					</span>
-				</span>
-			</div>
-			<div className="mt-1.5 flex items-center gap-1.5">
-				<Badge variant="outline">Tier {person.tier}</Badge>
-				{person.status === "ADDED" ? (
+			<span className="block truncate text-sm font-medium">
+				{person.fullName}
+			</span>
+			<span className="block truncate text-xs text-muted-foreground">
+				{person.title}
+			</span>
+			{person.status === "ADDED" ? (
+				<span className="mt-1.5 block">
 					<Badge variant="outline">In CRM</Badge>
-				) : null}
-				<span className="flex-1" />
-				{person.linkedinUrl ? (
-					<Button variant="ghost" size="icon-xs" asChild>
-						<a
-							href={person.linkedinUrl}
-							target="_blank"
-							rel="noopener noreferrer"
-						>
-							<Icon icon={LogoLinkedin} />
-							<span className="sr-only">Open LinkedIn</span>
-						</a>
-					</Button>
-				) : null}
-				{person.status === "SUGGESTED" ? (
-					<Button
-						variant="ghost"
-						size="icon-xs"
-						onClick={() => onAdd(person.id)}
-					>
-						<Icon icon={Add} />
-						<span className="sr-only">Add as contact</span>
-					</Button>
-				) : null}
-			</div>
+				</span>
+			) : null}
 			<Handle type="source" position={Position.Bottom} isConnectable={false} />
-		</div>
+		</button>
 	);
 }
 
@@ -124,7 +96,7 @@ const NODE_TYPES = { person: PersonNode, company: CompanyNode };
 function buildFlow(
 	companyName: string,
 	people: ChartPerson[],
-	onAdd: (id: string) => void,
+	onOpen: (id: string) => void,
 ): { nodes: ChartFlowNode[]; edges: Edge[] } {
 	const sorted = [...people].sort(
 		(a, b) =>
@@ -160,7 +132,7 @@ function buildFlow(
 				id: rootId,
 				type: "person",
 				position: { x: centerX, y: CHART.rootY },
-				data: { person: root, onAdd },
+				data: { person: root, onOpen },
 			}
 		: {
 				id: rootId,
@@ -182,7 +154,7 @@ function buildFlow(
 					x: laneIndex * CHART.laneWidth,
 					y: CHART.leaderY + memberIndex * CHART.rowHeight,
 				},
-				data: { person, onAdd },
+				data: { person, onOpen },
 			});
 			const parent = memberIndex === 0 ? rootId : (members[0]?.id ?? rootId);
 			edges.push({
@@ -200,21 +172,19 @@ function buildFlow(
 export function CompanyOrgChart({
 	companyName,
 	people,
-	onAdd,
-	adding,
+	onOpen,
 }: {
 	companyName: string;
 	people: ChartPerson[];
-	onAdd: (id: string) => void;
-	adding: boolean;
+	onOpen: (id: string) => void;
 }) {
-	const addRef = useRef(onAdd);
-	addRef.current = onAdd;
+	const openRef = useRef(onOpen);
+	openRef.current = onOpen;
 
 	const built = useMemo(
 		() =>
 			buildFlow(companyName, people, (id) => {
-				addRef.current(id);
+				openRef.current(id);
 			}),
 		[companyName, people],
 	);
@@ -236,10 +206,7 @@ export function CompanyOrgChart({
 	}
 
 	return (
-		<div
-			className="relative h-[560px] w-full"
-			data-adding={adding || undefined}
-		>
+		<div className="relative h-[70vh] min-h-96 w-full">
 			<ReactFlow
 				nodes={nodes}
 				edges={edges}
@@ -251,6 +218,9 @@ export function CompanyOrgChart({
 				maxZoom={1.5}
 				nodesConnectable={false}
 				deleteKeyCode={null}
+				panOnScroll
+				zoomOnScroll={false}
+				zoomOnPinch
 			>
 				<Background gap={24} />
 			</ReactFlow>

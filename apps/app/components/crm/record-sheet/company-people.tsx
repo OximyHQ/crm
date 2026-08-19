@@ -40,17 +40,12 @@ import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { CompanyOrgChart } from "./company-org-chart";
-import { useOpenRecord } from "./record-stack";
+import { PersonProfileDialog } from "./person-profile-dialog";
+import { QuickAddContact } from "./quick-add";
 
 export type Prospect = RouterOutputs["prospects"]["list"][number];
 
 const ALL = "all";
-
-const TIER_OPTIONS = [
-	{ value: ALL, label: "All tiers" },
-	{ value: "1", label: "Tier 1" },
-	{ value: "2", label: "Tier 2" },
-];
 
 const FUNCTION_OPTIONS = [
 	"Executive",
@@ -62,11 +57,10 @@ const FUNCTION_OPTIONS = [
 ];
 
 const PEOPLE_COLUMNS = [
-	{ id: "name", header: "Name", width: "w-[24%]", className: "pl-5" },
-	{ id: "title", header: "Title", width: "w-[26%]" },
-	{ id: "tier", header: "Tier", width: "w-[8%]" },
-	{ id: "function", header: "Function", width: "w-[12%]" },
-	{ id: "location", header: "Location", width: "w-[12%]" },
+	{ id: "name", header: "Name", width: "w-[26%]", className: "pl-5" },
+	{ id: "title", header: "Title", width: "w-[30%]" },
+	{ id: "function", header: "Function", width: "w-[13%]" },
+	{ id: "location", header: "Location", width: "w-[13%]" },
 	{ id: "asof", header: "As of", width: "w-[9%]" },
 	{ id: "actions", srLabel: "Actions", width: "w-[9%]" },
 ];
@@ -79,15 +73,16 @@ function locationOf(prospect: Prospect): string | null {
 export function CompanyPeople({
 	companyId,
 	companyName,
+	ownerId,
 	running,
 }: {
 	companyId: string;
 	companyName: string;
+	ownerId: string | null;
 	running: boolean;
 }) {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
-	const openRecord = useOpenRecord();
 
 	const query = useQuery({
 		...trpc.prospects.list.queryOptions({ companyId }),
@@ -96,21 +91,31 @@ export function CompanyPeople({
 
 	const [view, setView] = useState<"table" | "chart">("table");
 	const [q, setQ] = useState("");
-	const [tier, setTier] = useState(ALL);
 	const [orgFunction, setOrgFunction] = useState(ALL);
+	const [country, setCountry] = useState(ALL);
 	const [showDismissed, setShowDismissed] = useState(false);
+	const [openId, setOpenId] = useState<string | null>(null);
+	const [addingManually, setAddingManually] = useState(false);
 
 	const rows = useMemo(() => query.data ?? [], [query.data]);
 	const dismissedCount = rows.filter(
 		(row) => row.status === "DISMISSED",
 	).length;
 
+	const countries = useMemo(
+		() =>
+			[
+				...new Set(rows.map((row) => row.country).filter(Boolean)),
+			].sort() as string[],
+		[rows],
+	);
+
 	const visible = useMemo(() => {
 		const needle = q.trim().toLowerCase();
 		return rows.filter((row) => {
 			if (!showDismissed && row.status === "DISMISSED") return false;
-			if (tier !== ALL && String(row.tier) !== tier) return false;
 			if (orgFunction !== ALL && row.orgFunction !== orgFunction) return false;
+			if (country !== ALL && row.country !== country) return false;
 			if (
 				needle &&
 				!row.fullName.toLowerCase().includes(needle) &&
@@ -120,7 +125,7 @@ export function CompanyPeople({
 			}
 			return true;
 		});
-	}, [rows, q, tier, orgFunction, showDismissed]);
+	}, [rows, q, orgFunction, country, showDismissed]);
 
 	const invalidate = () => cache.prospects(companyId);
 
@@ -166,6 +171,14 @@ export function CompanyPeople({
 		);
 	}
 
+	const manualForm = addingManually ? (
+		<QuickAddContact
+			companyId={companyId}
+			ownerId={ownerId}
+			onDone={() => setAddingManually(false)}
+		/>
+	) : null;
+
 	if (rows.length === 0) {
 		if (running) {
 			return (
@@ -178,46 +191,56 @@ export function CompanyPeople({
 			);
 		}
 		return (
-			<DetailSheetEmpty
-				icon={UserMultiple}
-				title="No people pulled yet"
-				description={`Leadership and departmental heads at ${companyName}, from a static LinkedIn snapshot. Suggestions stay here until you add them as contacts.`}
-				action={
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => refresh.mutate({ companyId })}
-						disabled={refresh.isPending}
-					>
-						<Icon icon={Renew} data-icon="inline-start" />
-						Find people
-					</Button>
-				}
-			/>
+			<>
+				{manualForm}
+				{addingManually ? null : (
+					<DetailSheetEmpty
+						icon={UserMultiple}
+						title="No people pulled yet"
+						description={`Leadership and departmental heads at ${companyName}, from a LinkedIn snapshot. Suggestions stay here until you add them as contacts.`}
+						action={
+							<span className="flex items-center gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => refresh.mutate({ companyId })}
+									disabled={refresh.isPending}
+								>
+									<Icon icon={Renew} data-icon="inline-start" />
+									Find people
+								</Button>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => setAddingManually(true)}
+								>
+									<Icon icon={Add} data-icon="inline-start" />
+									Add manually
+								</Button>
+							</span>
+						}
+					/>
+				)}
+			</>
 		);
 	}
 
 	return (
 		<div>
+			<PersonProfileDialog
+				prospectId={openId}
+				onClose={() => setOpenId(null)}
+				onAdd={(id) => add.mutate({ id })}
+				adding={add.isPending}
+			/>
+
 			<div className="flex flex-wrap items-center gap-2 px-5 py-3">
 				<Input
 					value={q}
 					onChange={(event) => setQ(event.target.value)}
 					placeholder="Search name or title"
-					className="max-w-52"
+					className="max-w-48"
 				/>
-				<Select value={tier} onValueChange={setTier}>
-					<SelectTrigger className="w-28">
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent>
-						{TIER_OPTIONS.map((option) => (
-							<SelectItem key={option.value} value={option.value}>
-								{option.label}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
 				<Select value={orgFunction} onValueChange={setOrgFunction}>
 					<SelectTrigger className="w-36">
 						<SelectValue />
@@ -231,6 +254,21 @@ export function CompanyPeople({
 						))}
 					</SelectContent>
 				</Select>
+				{countries.length > 1 ? (
+					<Select value={country} onValueChange={setCountry}>
+						<SelectTrigger className="w-40">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value={ALL}>All countries</SelectItem>
+							{countries.map((option) => (
+								<SelectItem key={option} value={option}>
+									{option}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				) : null}
 				{dismissedCount > 0 ? (
 					<Button
 						variant="ghost"
@@ -242,6 +280,14 @@ export function CompanyPeople({
 					</Button>
 				) : null}
 				<span className="flex-1" />
+				<Button
+					variant="ghost"
+					size="sm"
+					onClick={() => setAddingManually(true)}
+				>
+					<Icon icon={Add} data-icon="inline-start" />
+					Add manually
+				</Button>
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<Button
@@ -276,24 +322,21 @@ export function CompanyPeople({
 				</ToggleGroup>
 			</div>
 
+			{manualForm}
+
 			{view === "chart" ? (
 				<CompanyOrgChart
 					companyName={companyName}
 					people={visible.filter((row) => row.status !== "DISMISSED")}
-					onAdd={(id) => add.mutate({ id })}
-					adding={add.isPending}
+					onOpen={setOpenId}
 				/>
 			) : (
 				<SimpleTable variant="panel" columns={PEOPLE_COLUMNS}>
 					{visible.map((prospect) => (
 						<SimpleTableRow
 							key={prospect.id}
-							clickable={prospect.contactId !== null}
-							onClick={() => {
-								if (prospect.contactId) {
-									openRecord({ kind: "contact", id: prospect.contactId });
-								}
-							}}
+							clickable
+							onClick={() => setOpenId(prospect.id)}
 						>
 							<TableCell className="truncate py-2.5 pr-3 pl-5 font-medium">
 								<span className="flex min-w-0 items-center gap-2">
@@ -314,9 +357,6 @@ export function CompanyPeople({
 							</TableCell>
 							<TableCell className="truncate px-3 py-2.5">
 								{prospect.title}
-							</TableCell>
-							<TableCell className="px-3 py-2.5">
-								<Badge variant="outline">Tier {prospect.tier}</Badge>
 							</TableCell>
 							<TableCell className="truncate px-3 py-2.5 text-muted-foreground">
 								{prospect.orgFunction}

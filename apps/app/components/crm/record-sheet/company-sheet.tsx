@@ -210,6 +210,7 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 						<CompanyPeople
 							companyId={company.id}
 							companyName={company.name}
+							ownerId={company.owner?.id ?? null}
 							running={enrichmentRunning}
 						/>
 					),
