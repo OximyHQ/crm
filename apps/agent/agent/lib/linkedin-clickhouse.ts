@@ -10,7 +10,6 @@ const TRANSIENT_ERRORS = [
 	"ETIMEDOUT",
 	"aborted",
 	"socket hang up",
-	"Timeout exceeded",
 ] as const;
 
 let client: ClickHouseClient | null = null;

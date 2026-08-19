@@ -1,4 +1,8 @@
-import { GTM_FUNCTIONS } from "@crm/validation";
+import {
+	GTM_FUNCTIONS,
+	normalizeCompanyName,
+	normalizePersonName,
+} from "@crm/validation";
 
 export type GtmPeopleResult = {
 	saved: number;
@@ -12,12 +16,16 @@ export type GtmPeopleResult = {
 	reason?: string;
 };
 
+const FUZZY_NOTE =
+	"Matched by closest company name, not an exact match. Check the company name if these people look wrong.";
+
 export function gtmPeopleOutcome(result: GtmPeopleResult): string {
 	if (result.reason) return result.reason;
 	if (result.saved === 0) {
-		return `No leadership titles matched across ${result.entities} LinkedIn ${
+		const base = `No leadership titles matched across ${result.entities} LinkedIn ${
 			result.entities === 1 ? "entity" : "entities"
 		}.`;
+		return result.resolvedFuzzily ? `${base} ${FUZZY_NOTE}` : base;
 	}
 	const notes: string[] = [];
 	if (result.truncated) notes.push("More matched than were kept.");
@@ -32,9 +40,7 @@ export function gtmPeopleOutcome(result: GtmPeopleResult): string {
 		);
 	}
 	if (result.resolvedFuzzily) {
-		notes.push(
-			"Matched by closest company name, not an exact match — check the company name if these people look wrong.",
-		);
+		notes.push(FUZZY_NOTE);
 	}
 	const tail = notes.length > 0 ? ` ${notes.join(" ")}` : "";
 	return `Saved ${result.saved} people (${result.tier1} Tier 1, ${result.tier2} Tier 2) from ${result.entities} LinkedIn ${
@@ -111,6 +117,7 @@ function extractJsonArray(raw: string): string | null {
 export function parseOrgAnalysis(
 	raw: string,
 	validIds: Set<string>,
+	reportIds: Set<string> = validIds,
 ): Map<string, OrgAnalysis> {
 	const out = new Map<string, OrgAnalysis>();
 	const body = extractJsonArray(raw);
@@ -140,7 +147,8 @@ export function parseOrgAnalysis(
 				Number.isInteger(seniority) && seniority >= 1 && seniority <= 8
 					? seniority
 					: 8,
-			reportsTo: validIds.has(reportsTo) && reportsTo !== id ? reportsTo : null,
+			reportsTo:
+				reportIds.has(reportsTo) && reportsTo !== id ? reportsTo : null,
 		});
 	}
 
@@ -199,32 +207,23 @@ export function parseCrawlDate(value: string | null | undefined): Date | null {
 }
 
 export function normalizeEntityName(value: string): string {
-	return value
-		.toLowerCase()
-		.replace(/[^a-z0-9 ]+/g, " ")
-		.replace(/\s+/g, " ")
-		.trim()
-		.replace(/^the /, "");
+	return normalizeCompanyName(value);
 }
 
 export function dedupeByName<
-	Row extends { fullName: string; asOf: Date | null },
+	Row extends { fullName: string; title: string; asOf: Date | null },
 >(rows: Row[]): { kept: Row[]; dropped: number } {
-	const byName = new Map<string, Row>();
+	const byKey = new Map<string, Row>();
 	let dropped = 0;
+	let blanks = 0;
 	for (const row of rows) {
-		const key = row.fullName
-			.toLowerCase()
-			.replace(/[^a-z ]+/g, " ")
-			.replace(/\s+/g, " ")
-			.trim();
-		if (!key) {
-			byName.set(`__blank_${dropped + byName.size}`, row);
-			continue;
-		}
-		const existing = byName.get(key);
+		const name = normalizePersonName(row.fullName);
+		const key = name
+			? `${name}|${normalizePersonName(row.title)}`
+			: `__blank_${blanks++}`;
+		const existing = byKey.get(key);
 		if (!existing) {
-			byName.set(key, row);
+			byKey.set(key, row);
 			continue;
 		}
 		dropped += 1;
@@ -232,7 +231,7 @@ export function dedupeByName<
 			(row.asOf?.getTime() ?? 0) > (existing.asOf?.getTime() ?? 0)
 				? row
 				: existing;
-		byName.set(key, newer);
+		byKey.set(key, newer);
 	}
-	return { kept: [...byName.values()], dropped };
+	return { kept: [...byKey.values()], dropped };
 }

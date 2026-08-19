@@ -109,7 +109,7 @@ export async function runGtmPeople({
 	await onPhase(
 		`Resolved ${entities.length} LinkedIn ${
 			entities.length === 1 ? "entity" : "entities"
-		} — scanning the roster`,
+		}, scanning the roster`,
 	);
 	const roster = await fetchRoster(entities.map((entity) => entity.id));
 	const coarseTruncated = roster.length >= GTM_PIPELINE.roster.coarseLimit;
@@ -139,7 +139,7 @@ export async function runGtmPeople({
 	const truncated = coarseTruncated || candidateRows.length > capped.length;
 
 	await onPhase(
-		`Found ${capped.length} leadership candidates — reading profiles`,
+		`Found ${capped.length} leadership candidates, reading profiles`,
 	);
 	const profiles = await hydrateProfiles(capped.map((row) => row.personId));
 
@@ -153,26 +153,28 @@ export async function runGtmPeople({
 
 	const entityNames = entities.map((entity) => entity.name);
 	const entityIds = entities.map((entity) => entity.id);
-	let departed = 0;
 	const hydrated = capped.flatMap((row) => {
 		const profile = profiles.get(row.personId);
 		if (!profile?.full_name) return [];
-		const experiences = toExperiences(profile.experience);
-		if (departedPerProfile(experiences, entityNames, entityIds)) {
-			departed += 1;
-			return [];
-		}
 		return [
 			{
 				...row,
 				profile,
-				experiences,
+				experiences: toExperiences(profile.experience),
 				fullName: profile.full_name,
 				asOf: parseCrawlDate(profile.updated_at),
 			},
 		];
 	});
-	let present = dedupeByName(hydrated).kept;
+	const unique = dedupeByName(hydrated).kept;
+	let departed = 0;
+	let present = unique.filter((row) => {
+		if (departedPerProfile(row.experiences, entityNames, entityIds)) {
+			departed += 1;
+			return false;
+		}
+		return true;
+	});
 
 	const reportsTo = new Map<string, string | null>();
 	const classified = new Map<
@@ -332,11 +334,12 @@ async function resolveEntities(
 		params,
 	);
 
-	const wanted = new Set(candidates.map(normalizeEntityName));
-	const exact = rows.filter((row) =>
-		wanted.has(normalizeEntityName(row.name_lower)),
-	);
-	const picked = exact.length > 0 ? exact : rows;
+	const wanted = new Set(candidates.map(normalizeEntityName).filter(Boolean));
+	const exact = rows.filter((row) => {
+		const normalized = normalizeEntityName(row.name_lower);
+		return normalized !== "" && wanted.has(normalized);
+	});
+	const picked = exact.length > 0 ? exact : rows.slice(0, 1);
 	return {
 		entities: picked
 			.slice(0, GTM_PIPELINE.resolve.entityLimit)

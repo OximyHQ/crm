@@ -1,4 +1,5 @@
 import type { CompanyPersonStatus, Db } from "@crm/db";
+import { normalizePersonName } from "@crm/validation";
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { InjectDatabase } from "../database/database.constants";
@@ -283,12 +284,12 @@ export class PeopleService {
 			if (byUrl) return byUrl.id;
 		}
 
-		const wanted = normalizeName(fullName);
+		const wanted = normalizePersonName(fullName);
 		if (!wanted) return null;
 		return (
 			contacts.find(
 				(contact) =>
-					normalizeName(
+					normalizePersonName(
 						[contact.firstName, contact.lastName].filter(Boolean).join(" "),
 					) === wanted,
 			)?.id ?? null
@@ -301,14 +302,6 @@ function effectiveStatus(row: {
 	contactId: string | null;
 }): CompanyPersonStatus {
 	return row.status === "ADDED" && !row.contactId ? "SUGGESTED" : row.status;
-}
-
-function normalizeName(value: string): string {
-	return value
-		.toLowerCase()
-		.replace(/[^a-z ]+/g, " ")
-		.replace(/\s+/g, " ")
-		.trim();
 }
 
 function splitName(fullName: string): {

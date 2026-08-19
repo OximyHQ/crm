@@ -229,3 +229,25 @@ export const GTM_FUNCTIONS = [
 ] as const;
 
 export type GtmOrgFunction = (typeof GTM_FUNCTIONS)[number];
+
+const COMPANY_SUFFIXES =
+	/\b(inc|incorporated|llc|ltd|limited|corp|corporation|gmbh|pvt|private|co|plc|sa|ag|bv)\b/g;
+
+export function normalizeCompanyName(value: string): string {
+	return value
+		.toLowerCase()
+		.replace(/\(.*?\)/g, " ")
+		.replace(/[^\p{L}\p{N} ]+/gu, " ")
+		.replace(COMPANY_SUFFIXES, " ")
+		.replace(/\s+/g, " ")
+		.trim()
+		.replace(/^the /, "");
+}
+
+export function normalizePersonName(value: string): string {
+	return value
+		.toLowerCase()
+		.replace(/[^\p{L} ]+/gu, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+}

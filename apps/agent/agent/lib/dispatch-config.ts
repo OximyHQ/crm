@@ -10,7 +10,7 @@ export const DISPATCH = {
 	gtmPeople: {
 		batch: 4,
 		concurrency: 2,
-		leaseMs: 15 * MINUTE_MS,
+		leaseMs: 20 * MINUTE_MS,
 		itemTimeoutMs: 8 * MINUTE_MS,
 	},
 

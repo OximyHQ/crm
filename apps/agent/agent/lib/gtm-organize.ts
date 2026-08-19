@@ -20,15 +20,21 @@ export async function analyzeOrg(
 	if (!key || candidates.length === 0) return null;
 
 	const merged = new Map<string, OrgAnalysis>();
+	const leaders: OrgCandidate[] = [];
 	for (
 		let start = 0;
 		start < candidates.length;
 		start += GTM_PIPELINE.hierarchy.chunk
 	) {
 		const chunk = candidates.slice(start, start + GTM_PIPELINE.hierarchy.chunk);
-		const parsed = await analyzeChunk(key, companyName, chunk);
-		if (parsed) {
-			for (const [id, entry] of parsed) merged.set(id, entry);
+		const parsed = await analyzeChunk(key, companyName, chunk, leaders);
+		if (!parsed) return null;
+		for (const [id, entry] of parsed) {
+			merged.set(id, entry);
+			if (entry.keep && entry.seniorityRank <= 4) {
+				const candidate = chunk.find((row) => row.personId === id);
+				if (candidate) leaders.push(candidate);
+			}
 		}
 	}
 
@@ -39,17 +45,29 @@ async function analyzeChunk(
 	key: string,
 	companyName: string,
 	candidates: OrgCandidate[],
+	leaders: OrgCandidate[],
 ): Promise<Map<string, OrgAnalysis> | null> {
 	const roster = candidates.map((candidate) => ({
 		id: candidate.personId,
 		name: candidate.fullName,
 		title: candidate.title,
 	}));
+	const leaderList = leaders.map((leader) => ({
+		id: leader.personId,
+		name: leader.fullName,
+		title: leader.title,
+	}));
+	const leaderBlock =
+		leaderList.length > 0
+			? `\n\nLeaders already mapped in an earlier batch, valid ONLY as ` +
+				`reportsTo targets, do not output entries for them:\n` +
+				`${JSON.stringify(leaderList)}\n`
+			: "";
 
 	const prompt =
 		`You are mapping the likely org structure of ${companyName}. Below is ` +
 		`a list of people from a LinkedIn snapshot, each with an id, name and ` +
-		`raw title.\n\n${JSON.stringify(roster)}\n\n` +
+		`raw title.\n\n${JSON.stringify(roster)}${leaderBlock}\n\n` +
 		`For EVERY id, decide:\n` +
 		`- keep: true when the person is a decision-maker a company selling ` +
 		`AI infrastructure would talk to: founders, the CEO/CFO/COO/president, ` +
@@ -98,6 +116,9 @@ async function analyzeChunk(
 		const parsed = parseOrgAnalysis(
 			content,
 			new Set(candidates.map((candidate) => candidate.personId)),
+			new Set(
+				[...candidates, ...leaders].map((candidate) => candidate.personId),
+			),
 		);
 		return parsed.size > 0 ? parsed : null;
 	} catch {
