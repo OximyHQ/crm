@@ -4,6 +4,7 @@ import { db } from "@crm/db";
 import { readContextDevKey } from "@crm/db/settings";
 
 export const CONTEXT_DEV = "CONTEXT_DEV";
+export const LINKEDIN_CLICKHOUSE = "LINKEDIN_CLICKHOUSE_HOST";
 
 export type Capability = {
 	readonly id: string;
@@ -41,6 +42,12 @@ export function capabilitiesFrom(
 	});
 
 	return [
+		{
+			...fromEnv(LINKEDIN_CLICKHOUSE),
+			label: "LinkedIn discovery index",
+			gives:
+				"read-only people and company discovery from Oximy's ClickHouse data",
+		},
 		{
 			...fromEnv("RAPIDAPI_KEY"),
 			label: "LinkedIn",

@@ -38,8 +38,36 @@ workspace membership on every MCP connection.
 ## Tools
 
 Read access provides CRM search, records, timelines, communications, tasks,
-dashboard totals, users, and custom fields. Communication detail includes full
-recordings, summaries, next steps, and transcripts.
+dashboard totals, users, custom fields, workspace context, and LinkedIn discovery.
+Communication detail includes full recordings, summaries, next steps, and
+transcripts.
+
+Deal lists accept a product filter.
+
+Valid values are `visibility`, `relay`, `sidekick`, `unspecified`, and `all`.
+
+The workspace context contains Oximy's narrative, offering, buyers, and
+differentiation.
+
+Owners and administrators edit this profile under Settings → General.
+
+LinkedIn tools query the optional ClickHouse capability through the agent.
+
+They return source identifiers, timestamps, URLs, bounded results, and cursors.
+
+People searches require a current company, city, or country scope.
+
+Identifiers remain decimal strings across ClickHouse, the agent, and MCP.
+
+Person search identifiers and company employee identifiers use separate source namespaces.
+
+`get_linkedin_person` accepts the identifier and country from `search_linkedin_people`.
+
+They never enrich, score, match identities, or write CRM records.
+
+Company resolution returns ranked candidates.
+
+Agents must confirm an ambiguous candidate before using its identifier.
 
 Write access provides record creation, updates, bulk changes, enrichment,
 ownership, company moves, primary contacts, deal contacts, activities,
@@ -57,8 +85,36 @@ archival, restoration, and backfills. The server also requires an owner or
 administrator workspace role. Permanent field deletion also requires delete
 access.
 
+Deal creation requires at least one product. Deal updates cannot clear the
+complete product selection.
+
 The MCP has no import tool. Connected systems create and update records through
 the normal tools. This path preserves CRM validation, events, and agent queues.
+
+Every tool returns both response forms.
+
+- `content[0].text` contains JSON for older clients.
+- `structuredContent.result` contains the same JSON-compatible value.
+
+The Oximy context and LinkedIn discovery tools publish explicit output schemas.
+
+All existing OAuth scopes and tool names remain unchanged.
+
+## Optional LinkedIn configuration
+
+The agent reads these root environment variables:
+
+- `LINKEDIN_CLICKHOUSE_HOST`
+- `LINKEDIN_CLICKHOUSE_PORT`
+- `LINKEDIN_CLICKHOUSE_USER`
+- `LINKEDIN_CLICKHOUSE_PASSWORD`
+- `LINKEDIN_CLICKHOUSE_DATABASE`
+
+The host enables the capability.
+
+Missing configuration returns an unavailable result.
+
+It never crashes the API or removes the MCP tools.
 
 ## Client setup
 

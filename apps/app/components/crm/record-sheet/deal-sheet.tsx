@@ -15,12 +15,19 @@ import { Icon } from "@crm/ui/components/icon";
 import { PersonAvatar } from "@crm/ui/components/person-avatar";
 import { SimpleTable, SimpleTableRow } from "@crm/ui/components/simple-table";
 import { TableCell } from "@crm/ui/components/table";
+import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "@crm/ui/components/tooltip";
 import { formatMoney } from "@crm/ui/lib/format";
+import {
+	OXIMY_PRODUCT_LABELS,
+	OXIMY_PRODUCTS,
+	type OximyProduct,
+	oximyProduct,
+} from "@crm/validation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AgentPanel } from "@/components/crm/agent-panel";
@@ -69,6 +76,50 @@ const CURRENCY_OPTIONS = CURRENCIES.map((entry) => ({
 	value: entry.code,
 	label: `${entry.code} · ${entry.name}`,
 }));
+
+const PRODUCT_OPTIONS = OXIMY_PRODUCTS.map((product) => ({
+	value: product,
+	label: OXIMY_PRODUCT_LABELS[product],
+}));
+
+function DealProductsField({
+	products,
+	saving,
+	onSave,
+}: {
+	products: OximyProduct[];
+	saving: boolean;
+	onSave: (products: OximyProduct[]) => void;
+}) {
+	return (
+		<DetailSheetProperty label="Products">
+			<ToggleGroup
+				type="multiple"
+				variant="outline"
+				size="sm"
+				value={products}
+				onValueChange={(values) => {
+					if (values.length === 0) {
+						toast.error("A deal needs at least one product.");
+						return;
+					}
+					onSave(values.map((value) => oximyProduct.parse(value)));
+				}}
+				aria-label="Products"
+			>
+				{PRODUCT_OPTIONS.map((product) => (
+					<ToggleGroupItem
+						key={product.value}
+						value={product.value}
+						disabled={saving}
+					>
+						{product.label}
+					</ToggleGroupItem>
+				))}
+			</ToggleGroup>
+		</DetailSheetProperty>
+	);
+}
 
 function dealCurrency(currency: string) {
 	return normalizeCurrency(currency) || currency;
@@ -298,6 +349,11 @@ function DealOverview({ deal }: { deal: Deal }) {
 						value={deal.name}
 						saving={isSaving("name")}
 						onSave={(name) => name && save({ name })}
+					/>
+					<DealProductsField
+						products={deal.products}
+						saving={isSaving("products")}
+						onSave={(products) => save({ products })}
 					/>
 					<InlineField
 						label="Amount"

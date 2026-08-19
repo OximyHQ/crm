@@ -10,8 +10,10 @@ import { DealsModule } from "../deals/deals.module";
 import { FieldsModule } from "../fields/fields.module";
 import { SearchModule } from "../search/search.module";
 import { UsersModule } from "../users/users.module";
+import { WorkspaceModule } from "../workspace/workspace.module";
 import { McpController } from "./mcp.controller";
 import { McpService } from "./mcp.service";
+import { McpAgentBridgeService } from "./mcp-agent-bridge.service";
 
 @Module({
 	imports: [
@@ -26,8 +28,9 @@ import { McpService } from "./mcp.service";
 		ConversationsModule,
 		SearchModule,
 		UsersModule,
+		WorkspaceModule,
 	],
 	controllers: [McpController],
-	providers: [McpService],
+	providers: [McpAgentBridgeService, McpService],
 })
 export class McpModule {}

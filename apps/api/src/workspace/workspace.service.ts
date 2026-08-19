@@ -8,7 +8,14 @@ import {
 	workspaceRoleOf,
 } from "@crm/auth";
 import type { Db, Prisma } from "@crm/db";
-import { isOnboarded, markOnboarded, workspaceSlug } from "@crm/db/workspace";
+import {
+	isOnboarded,
+	markOnboarded,
+	profileOf,
+	readWorkspaceProfile,
+	workspaceSlug,
+	writeWorkspaceProfile,
+} from "@crm/db/workspace";
 import {
 	BadRequestException,
 	ForbiddenException,
@@ -31,7 +38,17 @@ import type {
 	MemberListInput,
 	SetMemberRoleInput,
 	UpdateWorkspaceInput,
+	UpdateWorkspaceProfileInput,
 } from "./workspace.contracts";
+
+export interface WorkspaceProfileView {
+	narrative: string;
+	sells: string | null;
+	sellsTo: string | null;
+	edge: string | null;
+	sourceUrl: string | null;
+	refreshedAt: string;
+}
 
 export interface Workspace {
 	id: string;
@@ -42,6 +59,7 @@ export interface Workspace {
 	viewerRole: WorkspaceRole | null;
 	canRename: boolean;
 	canChangeRoles: boolean;
+	profile: WorkspaceProfileView | null;
 }
 
 export interface WorkspaceMember {
@@ -103,6 +121,7 @@ export class WorkspaceService {
 		}
 
 		const role = await workspaceRoleOf(userId);
+		const profile = profileOf(await readWorkspaceProfile(this.db), row.website);
 
 		return {
 			id: row.id,
@@ -113,6 +132,16 @@ export class WorkspaceService {
 			viewerRole: role,
 			canRename: canRenameWorkspace(role),
 			canChangeRoles: canChangeRole(role),
+			profile: profile
+				? {
+						narrative: profile.narrative,
+						sells: profile.sections.sells ?? null,
+						sellsTo: profile.sections.sellsTo ?? null,
+						edge: profile.sections.edge ?? null,
+						sourceUrl: profile.sourceUrl,
+						refreshedAt: profile.refreshedAt.toISOString(),
+					}
+				: null,
 		};
 	}
 
@@ -161,6 +190,40 @@ export class WorkspaceService {
 					: "The company using this CRM said what its website is",
 			);
 		}
+
+		return this.get(userId);
+	}
+
+	async updateProfile(
+		userId: string,
+		input: UpdateWorkspaceProfileInput,
+	): Promise<Workspace> {
+		const role = await workspaceRoleOf(userId);
+
+		if (!canRenameWorkspace(role)) {
+			throw new ForbiddenException(
+				"Only an owner or an admin can change the workspace profile.",
+			);
+		}
+
+		const workspace = await this.readWorkspace();
+		if (!workspace?.website) {
+			throw new BadRequestException(
+				"Add the workspace website before you write its profile.",
+			);
+		}
+
+		await writeWorkspaceProfile(this.db, {
+			website: workspace.website,
+			narrative: input.narrative,
+			sections: {
+				sells: input.sells || undefined,
+				sellsTo: input.sellsTo || undefined,
+				edge: input.edge || undefined,
+			},
+		});
+
+		this.logger.log({ message: "Workspace profile updated", userId });
 
 		return this.get(userId);
 	}

@@ -8,6 +8,7 @@ import {
 import { EmptyCellValue } from "@crm/ui/components/empty-cell";
 import { useTableSelection } from "@crm/ui/hooks/use-table-selection";
 import { formatMoney } from "@crm/ui/lib/format";
+import { OXIMY_PRODUCT_LABELS, OXIMY_PRODUCTS } from "@crm/validation";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { CLOSING_OPTIONS } from "@/components/crm/closing-window";
@@ -50,6 +51,17 @@ const COLUMNS: DataTableColumn<DealRow>[] = [
 		sortable: true,
 		width: "w-[18%]",
 		cell: (row) => <DealStageMenu dealId={row.id} stage={row.stage} />,
+	},
+	{
+		id: "product",
+		header: "Products",
+		width: "w-[12%]",
+		cell: (row) =>
+			row.products.length > 0 ? (
+				row.products.map((product) => OXIMY_PRODUCT_LABELS[product]).join(", ")
+			) : (
+				<EmptyCellValue />
+			),
 	},
 	{
 		id: "amount",
@@ -158,6 +170,17 @@ export function DealsTable() {
 			options: DEAL_STAGE_OPTIONS.filter(
 				(option) => (facetCounts?.stage?.[option.value] ?? 0) > 0,
 			),
+		},
+		{
+			id: "product",
+			label: "Product",
+			options: [
+				...OXIMY_PRODUCTS.map((product) => ({
+					value: product,
+					label: OXIMY_PRODUCT_LABELS[product],
+				})),
+				{ value: "unspecified", label: "Unspecified" },
+			],
 		},
 		{
 			id: "closing",

@@ -243,6 +243,7 @@ describe("CRM agent events", () => {
 			name: "Event-driven deal",
 			companyId: persistedCompanyId,
 			ownerId,
+			products: ["visibility"],
 			amountCents: 25_000,
 			currency: "USD",
 		});
