@@ -206,7 +206,7 @@ export function CompanyOrgChart({
 	}
 
 	return (
-		<div className="relative h-[70vh] min-h-96 w-full">
+		<div className="relative h-full min-h-96 w-full">
 			<ReactFlow
 				nodes={nodes}
 				edges={edges}

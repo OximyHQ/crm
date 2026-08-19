@@ -231,7 +231,7 @@ export function CompanyPeople({
 	}
 
 	return (
-		<div>
+		<div className="flex min-h-0 flex-1 flex-col">
 			<PersonProfileDialog
 				prospectId={openId}
 				onClose={() => setOpenId(null)}
@@ -239,7 +239,7 @@ export function CompanyPeople({
 				adding={add.isPending}
 			/>
 
-			<div className="flex flex-wrap items-center gap-2 px-5 py-3">
+			<div className="flex shrink-0 flex-wrap items-center gap-2 px-5 py-3">
 				<Input
 					value={q}
 					onChange={(event) => setQ(event.target.value)}
@@ -327,137 +327,145 @@ export function CompanyPeople({
 				</ToggleGroup>
 			</div>
 
-			{manualForm}
-
 			{view === "chart" ? (
-				<CompanyOrgChart
-					companyName={companyName}
-					people={visible.filter((row) => row.status !== "DISMISSED")}
-					onOpen={setOpenId}
-				/>
+				<div className="min-h-0 flex-1">
+					{manualForm}
+					<CompanyOrgChart
+						companyName={companyName}
+						people={visible.filter((row) => row.status !== "DISMISSED")}
+						onOpen={setOpenId}
+					/>
+				</div>
 			) : (
-				<SimpleTable variant="panel" columns={PEOPLE_COLUMNS}>
-					{visible.map((prospect) => (
-						<SimpleTableRow
-							key={prospect.id}
-							clickable
-							onClick={() => setOpenId(prospect.id)}
-						>
-							<TableCell className="truncate py-2.5 pr-3 pl-5 font-medium">
-								<span className="flex min-w-0 items-center gap-2">
-									<PersonAvatar src={null} name={prospect.fullName} size="sm" />
-									<span
-										className={
-											prospect.status === "DISMISSED"
-												? "truncate text-muted-foreground line-through"
-												: "truncate"
-										}
-									>
-										{prospect.fullName}
+				<div className="min-h-0 flex-1 overflow-y-auto">
+					{manualForm}
+					<SimpleTable variant="panel" columns={PEOPLE_COLUMNS}>
+						{visible.map((prospect) => (
+							<SimpleTableRow
+								key={prospect.id}
+								clickable
+								onClick={() => setOpenId(prospect.id)}
+							>
+								<TableCell className="truncate py-2.5 pr-3 pl-5 font-medium">
+									<span className="flex min-w-0 items-center gap-2">
+										<PersonAvatar
+											src={null}
+											name={prospect.fullName}
+											size="sm"
+										/>
+										<span
+											className={
+												prospect.status === "DISMISSED"
+													? "truncate text-muted-foreground line-through"
+													: "truncate"
+											}
+										>
+											{prospect.fullName}
+										</span>
+										{prospect.status === "ADDED" ? (
+											<Badge variant="outline">In CRM</Badge>
+										) : null}
 									</span>
-									{prospect.status === "ADDED" ? (
-										<Badge variant="outline">In CRM</Badge>
-									) : null}
-								</span>
-							</TableCell>
-							<TableCell className="truncate px-3 py-2.5">
-								{prospect.title}
-							</TableCell>
-							<TableCell className="truncate px-3 py-2.5 text-muted-foreground">
-								{prospect.orgFunction}
-							</TableCell>
-							<TableCell className="truncate px-3 py-2.5 text-muted-foreground">
-								{locationOf(prospect) ?? <EmptyCellValue />}
-							</TableCell>
-							<TableCell className="px-3 py-2.5 text-muted-foreground">
-								{prospect.profileAsOf ? (
-									<LocalDay date={prospect.profileAsOf} />
-								) : (
-									<EmptyCellValue />
-								)}
-							</TableCell>
-							<TableCell className="px-3 py-2.5">
-								<span className="flex items-center justify-end gap-1">
-									{prospect.linkedinUrl ? (
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<Button variant="ghost" size="icon-xs" asChild>
-													<a
-														href={prospect.linkedinUrl}
-														target="_blank"
-														rel="noopener noreferrer"
-														onClick={(event) => event.stopPropagation()}
-													>
-														<Icon icon={LogoLinkedin} />
-														<span className="sr-only">Open LinkedIn</span>
-													</a>
-												</Button>
-											</TooltipTrigger>
-											<TooltipContent>Open LinkedIn</TooltipContent>
-										</Tooltip>
-									) : null}
-									{prospect.status === "SUGGESTED" ? (
-										<>
+								</TableCell>
+								<TableCell className="truncate px-3 py-2.5">
+									{prospect.title}
+								</TableCell>
+								<TableCell className="truncate px-3 py-2.5 text-muted-foreground">
+									{prospect.orgFunction}
+								</TableCell>
+								<TableCell className="truncate px-3 py-2.5 text-muted-foreground">
+									{locationOf(prospect) ?? <EmptyCellValue />}
+								</TableCell>
+								<TableCell className="px-3 py-2.5 text-muted-foreground">
+									{prospect.profileAsOf ? (
+										<LocalDay date={prospect.profileAsOf} />
+									) : (
+										<EmptyCellValue />
+									)}
+								</TableCell>
+								<TableCell className="px-3 py-2.5">
+									<span className="flex items-center justify-end gap-1">
+										{prospect.linkedinUrl ? (
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<Button variant="ghost" size="icon-xs" asChild>
+														<a
+															href={prospect.linkedinUrl}
+															target="_blank"
+															rel="noopener noreferrer"
+															onClick={(event) => event.stopPropagation()}
+														>
+															<Icon icon={LogoLinkedin} />
+															<span className="sr-only">Open LinkedIn</span>
+														</a>
+													</Button>
+												</TooltipTrigger>
+												<TooltipContent>Open LinkedIn</TooltipContent>
+											</Tooltip>
+										) : null}
+										{prospect.status === "SUGGESTED" ? (
+											<>
+												<Tooltip>
+													<TooltipTrigger asChild>
+														<Button
+															variant="ghost"
+															size="icon-xs"
+															disabled={add.isPending}
+															onClick={(event) => {
+																event.stopPropagation();
+																add.mutate({ id: prospect.id });
+															}}
+														>
+															<Icon icon={Add} />
+															<span className="sr-only">Add as contact</span>
+														</Button>
+													</TooltipTrigger>
+													<TooltipContent>Add as contact</TooltipContent>
+												</Tooltip>
+												<Tooltip>
+													<TooltipTrigger asChild>
+														<Button
+															variant="ghost"
+															size="icon-xs"
+															disabled={dismiss.isPending}
+															onClick={(event) => {
+																event.stopPropagation();
+																dismiss.mutate({ id: prospect.id });
+															}}
+														>
+															<Icon icon={Close} />
+															<span className="sr-only">Dismiss</span>
+														</Button>
+													</TooltipTrigger>
+													<TooltipContent>Dismiss</TooltipContent>
+												</Tooltip>
+											</>
+										) : null}
+										{prospect.status === "DISMISSED" ? (
 											<Tooltip>
 												<TooltipTrigger asChild>
 													<Button
 														variant="ghost"
 														size="icon-xs"
-														disabled={add.isPending}
+														disabled={restore.isPending}
 														onClick={(event) => {
 															event.stopPropagation();
-															add.mutate({ id: prospect.id });
+															restore.mutate({ id: prospect.id });
 														}}
 													>
-														<Icon icon={Add} />
-														<span className="sr-only">Add as contact</span>
+														<Icon icon={Reset} />
+														<span className="sr-only">Restore</span>
 													</Button>
 												</TooltipTrigger>
-												<TooltipContent>Add as contact</TooltipContent>
+												<TooltipContent>Restore</TooltipContent>
 											</Tooltip>
-											<Tooltip>
-												<TooltipTrigger asChild>
-													<Button
-														variant="ghost"
-														size="icon-xs"
-														disabled={dismiss.isPending}
-														onClick={(event) => {
-															event.stopPropagation();
-															dismiss.mutate({ id: prospect.id });
-														}}
-													>
-														<Icon icon={Close} />
-														<span className="sr-only">Dismiss</span>
-													</Button>
-												</TooltipTrigger>
-												<TooltipContent>Dismiss</TooltipContent>
-											</Tooltip>
-										</>
-									) : null}
-									{prospect.status === "DISMISSED" ? (
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<Button
-													variant="ghost"
-													size="icon-xs"
-													disabled={restore.isPending}
-													onClick={(event) => {
-														event.stopPropagation();
-														restore.mutate({ id: prospect.id });
-													}}
-												>
-													<Icon icon={Reset} />
-													<span className="sr-only">Restore</span>
-												</Button>
-											</TooltipTrigger>
-											<TooltipContent>Restore</TooltipContent>
-										</Tooltip>
-									) : null}
-								</span>
-							</TableCell>
-						</SimpleTableRow>
-					))}
-				</SimpleTable>
+										) : null}
+									</span>
+								</TableCell>
+							</SimpleTableRow>
+						))}
+					</SimpleTable>
+				</div>
 			)}
 		</div>
 	);
