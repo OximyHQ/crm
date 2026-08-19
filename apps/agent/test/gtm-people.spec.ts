@@ -4,8 +4,8 @@ import {
 	departedPerProfile,
 	gtmPeopleOutcome,
 	nameCandidates,
-	type ProfileExperience,
 	normalizeEntityName,
+	type ProfileExperience,
 	parseCrawlDate,
 	parseOrgAnalysis,
 	parseVerifyAnswer,
@@ -90,9 +90,7 @@ describe("normalizeEntityName", () => {
 		expect(normalizeEntityName("wall street journal")).toBe(
 			"wall street journal",
 		);
-		expect(normalizeEntityName("BrowserStack, Inc.")).toBe(
-			"browserstack inc",
-		);
+		expect(normalizeEntityName("BrowserStack, Inc.")).toBe("browserstack inc");
 	});
 });
 
@@ -106,9 +104,9 @@ describe("dedupeByName", () => {
 		const { kept, dropped } = dedupeByName(rows);
 		expect(dropped).toBe(1);
 		expect(kept).toHaveLength(2);
-		expect(
-			kept.find((row) => row.fullName.startsWith("Balaji"))?.asOf,
-		).toEqual(new Date("2026-03-03"));
+		expect(kept.find((row) => row.fullName.startsWith("Balaji"))?.asOf).toEqual(
+			new Date("2026-03-03"),
+		);
 	});
 });
 

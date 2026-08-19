@@ -25,10 +25,7 @@ export async function analyzeOrg(
 		start < candidates.length;
 		start += GTM_PIPELINE.hierarchy.chunk
 	) {
-		const chunk = candidates.slice(
-			start,
-			start + GTM_PIPELINE.hierarchy.chunk,
-		);
+		const chunk = candidates.slice(start, start + GTM_PIPELINE.hierarchy.chunk);
 		const parsed = await analyzeChunk(key, companyName, chunk);
 		if (parsed) {
 			for (const [id, entry] of parsed) merged.set(id, entry);

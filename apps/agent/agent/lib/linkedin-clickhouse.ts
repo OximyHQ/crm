@@ -10,6 +10,7 @@ const TRANSIENT_ERRORS = [
 	"ETIMEDOUT",
 	"aborted",
 	"socket hang up",
+	"Timeout exceeded",
 ] as const;
 
 let client: ClickHouseClient | null = null;
@@ -21,6 +22,7 @@ export function linkedinClickHouseConfigured(): boolean {
 export async function linkedinQuery<Row = unknown>(
 	query: string,
 	queryParams: Record<string, unknown>,
+	options: { maxExecutionSeconds?: number } = {},
 ): Promise<Row[]> {
 	const clickhouse = linkedinClient();
 	if (!clickhouse) return [];
@@ -36,7 +38,9 @@ export async function linkedinQuery<Row = unknown>(
 				query_params: queryParams,
 				format: "JSONEachRow",
 				clickhouse_settings: {
-					max_execution_time: LINKEDIN_DISCOVERY.query.maxExecutionSeconds,
+					max_execution_time:
+						options.maxExecutionSeconds ??
+						LINKEDIN_DISCOVERY.query.maxExecutionSeconds,
 					max_threads: LINKEDIN_DISCOVERY.query.maxThreads,
 					use_query_cache: 1,
 					query_cache_ttl: LINKEDIN_DISCOVERY.query.cacheSeconds,

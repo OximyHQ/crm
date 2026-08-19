@@ -286,7 +286,9 @@ type EntityResolution = {
 	fuzzy: boolean;
 };
 
-async function resolveEntities(candidates: string[]): Promise<EntityResolution> {
+async function resolveEntities(
+	candidates: string[],
+): Promise<EntityResolution> {
 	const params: Record<string, unknown> = {
 		re_limit: GTM_PIPELINE.resolve.candidateLimit,
 	};
@@ -342,6 +344,7 @@ async function fetchRoster(entityIds: string[]): Promise<RosterRow[]> {
 			ro_limit: GTM_PIPELINE.roster.coarseLimit,
 			ro_rank: GTM_PIPELINE.roster.maxRank,
 		},
+		{ maxExecutionSeconds: GTM_PIPELINE.roster.maxExecutionSeconds },
 	);
 }
 
