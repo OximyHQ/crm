@@ -212,7 +212,7 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 								))}
 							</ToggleGroup>
 							<FieldDescription>
-								Choose every product included in this commercial opportunity.
+								Select every product included in this deal.
 							</FieldDescription>
 						</Field>
 
