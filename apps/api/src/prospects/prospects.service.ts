@@ -22,6 +22,7 @@ export type ProspectRow = {
 	tier: number;
 	orgFunction: string;
 	seniorityRank: number;
+	reportsToPersonId: string | null;
 	profileAsOf: string | null;
 	status: ProspectStatus;
 	contactId: string | null;
@@ -63,6 +64,7 @@ export class ProspectsService {
 			tier: row.tier,
 			orgFunction: row.orgFunction,
 			seniorityRank: row.seniorityRank,
+			reportsToPersonId: row.reportsToPersonId,
 			profileAsOf: row.profileAsOf?.toISOString() ?? null,
 			status: row.status,
 			contactId: row.contactId,
@@ -91,6 +93,7 @@ export class ProspectsService {
 			tier: row.tier,
 			orgFunction: row.orgFunction,
 			seniorityRank: row.seniorityRank,
+			reportsToPersonId: row.reportsToPersonId,
 			profileAsOf: row.profileAsOf?.toISOString() ?? null,
 			status: row.status,
 			contactId: row.contactId,

@@ -18,6 +18,7 @@ import { useEffect, useMemo, useRef } from "react";
 
 export type ChartPerson = {
 	id: string;
+	personId: string;
 	fullName: string;
 	title: string;
 	tier: number;
@@ -26,6 +27,7 @@ export type ChartPerson = {
 	status: string;
 	linkedinUrl: string | null;
 	contactId: string | null;
+	reportsToPersonId: string | null;
 };
 
 const LANES = [
@@ -93,17 +95,117 @@ function CompanyNode({ data }: NodeProps<CompanyFlowNode>) {
 
 const NODE_TYPES = { person: PersonNode, company: CompanyNode };
 
-function buildFlow(
+function byRank(a: ChartPerson, b: ChartPerson): number {
+	return (
+		a.seniorityRank - b.seniorityRank ||
+		a.tier - b.tier ||
+		a.fullName.localeCompare(b.fullName)
+	);
+}
+
+function buildTreeFlow(
 	companyName: string,
 	people: ChartPerson[],
 	onOpen: (id: string) => void,
 ): { nodes: ChartFlowNode[]; edges: Edge[] } {
-	const sorted = [...people].sort(
-		(a, b) =>
-			a.seniorityRank - b.seniorityRank ||
-			a.tier - b.tier ||
-			a.fullName.localeCompare(b.fullName),
-	);
+	const byPersonId = new Map(people.map((person) => [person.personId, person]));
+	const children = new Map<string, ChartPerson[]>();
+	const roots: ChartPerson[] = [];
+
+	for (const person of [...people].sort(byRank)) {
+		const parent = person.reportsToPersonId
+			? byPersonId.get(person.reportsToPersonId)
+			: undefined;
+		if (parent && parent.personId !== person.personId) {
+			const bucket = children.get(parent.personId);
+			if (bucket) bucket.push(person);
+			else children.set(parent.personId, [person]);
+		} else {
+			roots.push(person);
+		}
+	}
+
+	const widths = new Map<string, number>();
+	const measure = (person: ChartPerson): number => {
+		const kids = children.get(person.personId) ?? [];
+		const width =
+			kids.length === 0
+				? 1
+				: Math.max(
+						1,
+						kids.reduce((total, kid) => total + measure(kid), 0),
+					);
+		widths.set(person.personId, width);
+		return width;
+	};
+	for (const root of roots) measure(root);
+
+	const nodes: ChartFlowNode[] = [];
+	const edges: Edge[] = [];
+	const singleRoot = roots.length === 1;
+
+	const place = (person: ChartPerson, unitX: number, depth: number): void => {
+		const width = widths.get(person.personId) ?? 1;
+		nodes.push({
+			id: person.id,
+			type: "person",
+			position: {
+				x: (unitX + width / 2 - 0.5) * CHART.laneWidth,
+				y: CHART.leaderY * (singleRoot ? 0 : 1) + depth * CHART.rowHeight * 1.4,
+			},
+			data: { person, onOpen },
+		});
+		let cursor = unitX;
+		for (const kid of children.get(person.personId) ?? []) {
+			edges.push({
+				id: `${person.id}-${kid.id}`,
+				source: person.id,
+				target: kid.id,
+				type: "smoothstep",
+			});
+			place(kid, cursor, depth + 1);
+			cursor += widths.get(kid.personId) ?? 1;
+		}
+	};
+
+	if (singleRoot && roots[0]) {
+		place(roots[0], 0, 0);
+	} else {
+		const totalWidth = roots.reduce(
+			(total, root) => total + (widths.get(root.personId) ?? 1),
+			0,
+		);
+		nodes.push({
+			id: "company-root",
+			type: "company",
+			position: {
+				x: ((Math.max(totalWidth, 1) - 1) / 2) * CHART.laneWidth,
+				y: CHART.rootY,
+			},
+			data: { label: companyName },
+		});
+		let cursor = 0;
+		for (const root of roots) {
+			edges.push({
+				id: `company-root-${root.id}`,
+				source: "company-root",
+				target: root.id,
+				type: "smoothstep",
+			});
+			place(root, cursor, 1);
+			cursor += widths.get(root.personId) ?? 1;
+		}
+	}
+
+	return { nodes, edges };
+}
+
+function buildLaneFlow(
+	companyName: string,
+	people: ChartPerson[],
+	onOpen: (id: string) => void,
+): { nodes: ChartFlowNode[]; edges: Edge[] } {
+	const sorted = [...people].sort(byRank);
 
 	const lanes = new Map<string, ChartPerson[]>();
 	for (const person of sorted) {
@@ -115,33 +217,18 @@ function buildFlow(
 		else lanes.set(lane, [person]);
 	}
 
-	const root = lanes.get("Executive")?.[0] ?? null;
-	if (root) {
-		const executives = (lanes.get("Executive") ?? []).slice(1);
-		if (executives.length > 0) lanes.set("Executive", executives);
-		else lanes.delete("Executive");
-	}
-
 	const orderedLanes = LANES.filter((lane) => lanes.has(lane));
 	const laneCount = Math.max(orderedLanes.length, 1);
 	const centerX = ((laneCount - 1) * CHART.laneWidth) / 2;
 
-	const rootId = root ? root.id : "company-root";
-	const rootNode: ChartFlowNode = root
-		? {
-				id: rootId,
-				type: "person",
-				position: { x: centerX, y: CHART.rootY },
-				data: { person: root, onOpen },
-			}
-		: {
-				id: rootId,
-				type: "company",
-				position: { x: centerX, y: CHART.rootY },
-				data: { label: companyName },
-			};
-
-	const nodes: ChartFlowNode[] = [rootNode];
+	const nodes: ChartFlowNode[] = [
+		{
+			id: "company-root",
+			type: "company",
+			position: { x: centerX, y: CHART.rootY },
+			data: { label: companyName },
+		},
+	];
 	const edges: Edge[] = [];
 
 	orderedLanes.forEach((lane, laneIndex) => {
@@ -156,13 +243,14 @@ function buildFlow(
 				},
 				data: { person, onOpen },
 			});
-			const parent = memberIndex === 0 ? rootId : (members[0]?.id ?? rootId);
-			edges.push({
-				id: `${parent}-${person.id}`,
-				source: parent,
-				target: person.id,
-				type: "smoothstep",
-			});
+			if (memberIndex === 0) {
+				edges.push({
+					id: `company-root-${person.id}`,
+					source: "company-root",
+					target: person.id,
+					type: "smoothstep",
+				});
+			}
 		});
 	});
 
@@ -181,13 +269,18 @@ export function CompanyOrgChart({
 	const openRef = useRef(onOpen);
 	openRef.current = onOpen;
 
-	const built = useMemo(
-		() =>
-			buildFlow(companyName, people, (id) => {
-				openRef.current(id);
-			}),
-		[companyName, people],
+	const hasHierarchy = people.some(
+		(person) => person.reportsToPersonId !== null,
 	);
+
+	const built = useMemo(() => {
+		const open = (id: string) => {
+			openRef.current(id);
+		};
+		return hasHierarchy
+			? buildTreeFlow(companyName, people, open)
+			: buildLaneFlow(companyName, people, open);
+	}, [companyName, people, hasHierarchy]);
 
 	const [nodes, setNodes, onNodesChange] = useNodesState(built.nodes);
 	const [edges, setEdges, onEdgesChange] = useEdgesState(built.edges);
@@ -225,7 +318,9 @@ export function CompanyOrgChart({
 				<Background gap={24} />
 			</ReactFlow>
 			<div className="pointer-events-none absolute top-2 left-1/2 -translate-x-1/2 rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground">
-				Inferred from titles, not actual reporting lines
+				{hasHierarchy
+					? "Reporting lines estimated by AI from titles"
+					: "Grouped by function, not actual reporting lines"}
 			</div>
 		</div>
 	);
