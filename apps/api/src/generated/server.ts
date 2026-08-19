@@ -410,6 +410,9 @@ const appRouter = t.router({
     list: publicProcedure
       .input(prospectListInput)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProspectsRouter["list"]>>),
+    byId: publicProcedure
+      .input(prospectIdInput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProspectsRouter["byId"]>>),
     addAsContact: publicProcedure
       .input(prospectIdInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProspectsRouter["addAsContact"]>>),

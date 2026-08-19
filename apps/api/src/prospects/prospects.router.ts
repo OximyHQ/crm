@@ -20,6 +20,11 @@ export class ProspectsRouter {
 		return this.prospects.list(companyId);
 	}
 
+	@Query({ input: prospectIdInput })
+	async byId(@Input("id") id: string) {
+		return this.prospects.byId(id);
+	}
+
 	@Mutation({ input: prospectIdInput })
 	async addAsContact(@Input("id") id: string) {
 		return this.prospects.addAsContact(id);

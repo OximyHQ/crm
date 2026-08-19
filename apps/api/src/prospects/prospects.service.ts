@@ -2,6 +2,10 @@ import type { Db, ProspectStatus } from "@crm/db";
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { InjectDatabase } from "../database/database.constants";
+import {
+	type ProspectProfile,
+	parseProspectProfile,
+} from "./prospects.contracts";
 
 export type ProspectRow = {
 	id: string;
@@ -64,6 +68,35 @@ export class ProspectsService {
 			contactId: row.contactId,
 			updatedAt: row.updatedAt.toISOString(),
 		}));
+	}
+
+	async byId(
+		id: string,
+	): Promise<ProspectRow & { profile: ProspectProfile | null }> {
+		const row = await this.db.companyProspect.findUnique({ where: { id } });
+		if (!row) throw new NotFoundException(`No prospect with id ${id}.`);
+
+		return {
+			id: row.id,
+			personId: row.personId,
+			fullName: row.fullName,
+			title: row.title,
+			headline: row.headline,
+			city: row.city,
+			state: row.state,
+			country: row.country,
+			linkedinUrl: row.linkedinUrl,
+			connectionsCount: row.connectionsCount,
+			followerCount: row.followerCount,
+			tier: row.tier,
+			orgFunction: row.orgFunction,
+			seniorityRank: row.seniorityRank,
+			profileAsOf: row.profileAsOf?.toISOString() ?? null,
+			status: row.status,
+			contactId: row.contactId,
+			updatedAt: row.updatedAt.toISOString(),
+			profile: parseProspectProfile(row.profile),
+		};
 	}
 
 	async addAsContact(
