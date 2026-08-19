@@ -124,34 +124,16 @@ function buildTreeFlow(
 		}
 	}
 
-	const widths = new Map<string, number>();
-	const measure = (person: ChartPerson): number => {
-		const kids = children.get(person.personId) ?? [];
-		const width = Math.max(
-			1,
-			kids.reduce((total, kid) => total + measure(kid), 0),
-		);
-		widths.set(person.personId, width);
-		return width;
-	};
-	for (const root of roots) measure(root);
-
 	const nodes: ChartFlowNode[] = [];
 	const edges: Edge[] = [];
 	const singleRoot = roots.length === 1;
+	const levelOffset = singleRoot ? 0 : 1;
 
-	const place = (person: ChartPerson, unitX: number, depth: number): void => {
-		const width = widths.get(person.personId) ?? 1;
-		nodes.push({
-			id: person.id,
-			type: "person",
-			position: {
-				x: (unitX + width / 2 - 0.5) * CHART.laneWidth,
-				y: depth * CHART.levelGap,
-			},
-			data: { person, onOpen },
-		});
-		let cursor = unitX;
+	const levels: ChartPerson[][] = [];
+	const walk = (person: ChartPerson, depth: number): void => {
+		const level = levels[depth];
+		if (level) level.push(person);
+		else levels[depth] = [person];
 		for (const kid of children.get(person.personId) ?? []) {
 			edges.push({
 				id: `${person.id}-${kid.id}`,
@@ -159,28 +141,18 @@ function buildTreeFlow(
 				target: kid.id,
 				type: "smoothstep",
 			});
-			place(kid, cursor, depth + 1);
-			cursor += widths.get(kid.personId) ?? 1;
+			walk(kid, depth + 1);
 		}
 	};
+	for (const root of roots) walk(root, 0);
 
-	if (singleRoot && roots[0]) {
-		place(roots[0], 0, 0);
-	} else {
-		const totalWidth = roots.reduce(
-			(total, root) => total + (widths.get(root.personId) ?? 1),
-			0,
-		);
+	if (!singleRoot) {
 		nodes.push({
 			id: "company-root",
 			type: "company",
-			position: {
-				x: ((Math.max(totalWidth, 1) - 1) / 2) * CHART.laneWidth,
-				y: CHART.rootY,
-			},
+			position: { x: -60, y: CHART.rootY },
 			data: { label: companyName },
 		});
-		let cursor = 0;
 		for (const root of roots) {
 			edges.push({
 				id: `company-root-${root.id}`,
@@ -188,10 +160,23 @@ function buildTreeFlow(
 				target: root.id,
 				type: "smoothstep",
 			});
-			place(root, cursor, 1);
-			cursor += widths.get(root.personId) ?? 1;
 		}
 	}
+
+	levels.forEach((level, depth) => {
+		const rowWidth = (level.length - 1) * CHART.laneWidth;
+		level.forEach((person, index) => {
+			nodes.push({
+				id: person.id,
+				type: "person",
+				position: {
+					x: index * CHART.laneWidth - rowWidth / 2,
+					y: (depth + levelOffset) * CHART.levelGap,
+				},
+				data: { person, onOpen },
+			});
+		});
+	});
 
 	return { nodes, edges };
 }
