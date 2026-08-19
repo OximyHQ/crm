@@ -239,12 +239,7 @@ export class McpService {
 				outputSchema: z.object({
 					result: schemas.oximy.productContextResult,
 				}),
-				annotations: {
-					readOnlyHint: true,
-					destructiveHint: false,
-					idempotentHint: true,
-					openWorldHint: false,
-				},
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async () => {
 				const workspace = await this.workspace.get(userId);
