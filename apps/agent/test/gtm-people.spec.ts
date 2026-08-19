@@ -1,9 +1,107 @@
 import { describe, expect, it } from "bun:test";
 import {
+	departedPerProfile,
 	gtmPeopleOutcome,
 	nameCandidates,
+	type ProfileExperience,
 	parseCrawlDate,
+	parseVerifyAnswer,
 } from "../agent/lib/gtm-report";
+
+function experience(
+	company: string,
+	current: boolean,
+	to: string | null = current ? null : "September 2025",
+	companyId: string | null = null,
+): ProfileExperience {
+	return {
+		title: "CFO",
+		company,
+		companyId,
+		from: "December 2021",
+		to,
+		current,
+	};
+}
+
+describe("departedPerProfile", () => {
+	it("drops a person whose only role at the company has ended", () => {
+		expect(
+			departedPerProfile(
+				[experience("Neurealm", false), experience("ZENRE", true)],
+				["Neurealm"],
+			),
+		).toBe(true);
+	});
+
+	it("keeps a person whose role at the company is current", () => {
+		expect(
+			departedPerProfile([experience("Neurealm", true)], ["Neurealm"]),
+		).toBe(false);
+	});
+
+	it("keeps a person whose profile never names the company", () => {
+		expect(
+			departedPerProfile([experience("Some Agency", true)], ["Neurealm"]),
+		).toBe(false);
+	});
+
+	it("matches company names loosely", () => {
+		expect(
+			departedPerProfile(
+				[experience("Neurealm (Formerly GSLab|GAVS)", true)],
+				["Neurealm"],
+			),
+		).toBe(false);
+		expect(
+			departedPerProfile(
+				[experience("Neurealm (Formerly GSLab|GAVS)", false)],
+				["Neurealm"],
+			),
+		).toBe(true);
+	});
+
+	it("matches by entity id even when the names differ", () => {
+		expect(
+			departedPerProfile(
+				[
+					experience(
+						"A Totally Different Label",
+						false,
+						"May 2025",
+						"92538015",
+					),
+				],
+				["Neurealm"],
+				["92538015"],
+			),
+		).toBe(true);
+	});
+});
+
+describe("parseVerifyAnswer", () => {
+	it("reads the three answers", () => {
+		expect(parseVerifyAnswer('{"current": true, "evidence": "x"}')).toBe(
+			"current",
+		);
+		expect(parseVerifyAnswer('{"current": false, "evidence": "x"}')).toBe(
+			"left",
+		);
+		expect(parseVerifyAnswer('{"current": "unsure"}')).toBe("unsure");
+	});
+
+	it("defaults to unsure on junk", () => {
+		expect(parseVerifyAnswer("no json here")).toBe("unsure");
+		expect(parseVerifyAnswer("{broken")).toBe("unsure");
+		expect(parseVerifyAnswer("")).toBe("unsure");
+	});
+
+	it("finds the JSON inside prose", () => {
+		expect(
+			parseVerifyAnswer('Based on my search: {"current": false} — they left.'),
+		).toBe("left");
+	});
+});
 
 describe("nameCandidates", () => {
 	it("uses the name and the domain root", () => {

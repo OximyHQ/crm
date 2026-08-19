@@ -4,6 +4,8 @@ export type GtmPeopleResult = {
 	tier2: number;
 	entities: number;
 	truncated: boolean;
+	departed?: number;
+	verifiedOut?: number;
 	reason?: string;
 };
 
@@ -14,10 +16,83 @@ export function gtmPeopleOutcome(result: GtmPeopleResult): string {
 			result.entities === 1 ? "entity" : "entities"
 		}.`;
 	}
-	const cut = result.truncated ? " More matched than were kept." : "";
+	const notes: string[] = [];
+	if (result.truncated) notes.push("More matched than were kept.");
+	if (result.departed) {
+		notes.push(
+			`${result.departed} dropped because their own profile shows the role ended.`,
+		);
+	}
+	if (result.verifiedOut) {
+		notes.push(
+			`${result.verifiedOut} dropped after a web check found they left.`,
+		);
+	}
+	const tail = notes.length > 0 ? ` ${notes.join(" ")}` : "";
 	return `Saved ${result.saved} people (${result.tier1} Tier 1, ${result.tier2} Tier 2) from ${result.entities} LinkedIn ${
 		result.entities === 1 ? "entity" : "entities"
-	}.${cut}`;
+	}.${tail}`;
+}
+
+export type ProfileExperience = {
+	title: string;
+	company: string;
+	companyId: string | null;
+	from: string | null;
+	to: string | null;
+	current: boolean;
+};
+
+export type ProspectProfile = {
+	headline: string | null;
+	asOf: string | null;
+	experiences: ProfileExperience[];
+};
+
+const COMPANY_NOISE = /\(.*?\)|\bformerly\b.*$/gi;
+
+function normalizeCompany(value: string): string {
+	return value
+		.toLowerCase()
+		.replace(COMPANY_NOISE, " ")
+		.replace(/[^a-z0-9 ]+/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+function companiesOverlap(a: string, b: string): boolean {
+	const left = normalizeCompany(a);
+	const right = normalizeCompany(b);
+	if (!left || !right) return false;
+	return left.includes(right) || right.includes(left);
+}
+
+export function departedPerProfile(
+	experiences: ProfileExperience[],
+	entityNames: string[],
+	entityIds: string[] = [],
+): boolean {
+	const ids = new Set(entityIds);
+	const atCompany = experiences.filter(
+		(entry) =>
+			(entry.companyId !== null && ids.has(entry.companyId)) ||
+			entityNames.some((name) => companiesOverlap(entry.company, name)),
+	);
+	if (atCompany.length === 0) return false;
+	return atCompany.every((entry) => !entry.current);
+}
+
+export function parseVerifyAnswer(raw: string): "current" | "left" | "unsure" {
+	const match = raw.match(/\{[\s\S]*\}/);
+	if (!match) return "unsure";
+	try {
+		const parsed = JSON.parse(match[0]) as { current?: unknown };
+		if (parsed.current === true) return "current";
+		if (parsed.current === false) return "left";
+		return "unsure";
+	} catch {
+		return "unsure";
+	}
 }
 
 export function nameCandidates(name: string, domain: string | null): string[] {

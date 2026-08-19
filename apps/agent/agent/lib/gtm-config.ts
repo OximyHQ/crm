@@ -250,6 +250,14 @@ export const GTM_PIPELINE = {
 	resolve: { candidateLimit: 25, entityLimit: 10 },
 	roster: { coarseLimit: 3000 },
 	keep: { limit: 300 },
+	profile: { experienceLimit: 15 },
+	verify: {
+		cap: 40,
+		concurrency: 4,
+		callTimeoutMs: 20_000,
+		model: "google/gemini-3-flash-preview:online",
+		baseUrl: "https://openrouter.ai/api/v1",
+	},
 	query: {
 		maxExecutionSeconds: 25,
 		maxThreads: 4,

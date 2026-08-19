@@ -1,12 +1,16 @@
-import { db } from "@crm/db";
+import { db, type Prisma } from "@crm/db";
 import { gtmConfigured, gtmQuery } from "./gtm-clickhouse";
 import { GTM_PIPELINE } from "./gtm-config";
 import { buildCoarseTierSql, matchTitle } from "./gtm-matcher";
 import {
+	departedPerProfile,
 	type GtmPeopleResult,
 	nameCandidates,
+	type ProfileExperience,
+	type ProspectProfile,
 	parseCrawlDate,
 } from "./gtm-report";
+import { gtmVerifyConfigured, verifyStillAtCompany } from "./gtm-verify";
 
 export { type GtmPeopleResult, gtmPeopleOutcome } from "./gtm-report";
 
@@ -23,6 +27,15 @@ type RosterRow = {
 	company_name: string;
 };
 
+type ExperienceRow = {
+	title: string;
+	company_name: string;
+	company_id: string | number | null;
+	date_from: string;
+	date_to: string;
+	is_current: number | string;
+};
+
 type ProfileRow = {
 	id: string | number;
 	full_name: string;
@@ -34,6 +47,7 @@ type ProfileRow = {
 	connections_count: string | number;
 	follower_count: string | number;
 	updated_at: string | null;
+	experience: ExperienceRow[];
 };
 
 const NONE: Omit<GtmPeopleResult, "reason"> = {
@@ -124,9 +138,23 @@ export async function runGtmPeople({
 		};
 	}
 
+	const entityNames = entities.map((entity) => entity.name);
+	const entityIds = entities.map((entity) => entity.id);
+	let departed = 0;
 	const people = kept.flatMap((row) => {
 		const profile = profiles.get(row.personId);
 		if (!profile?.full_name) return [];
+		const experiences = toExperiences(profile.experience);
+		if (departedPerProfile(experiences, entityNames, entityIds)) {
+			departed += 1;
+			return [];
+		}
+		const asOf = parseCrawlDate(profile.updated_at);
+		const stored: ProspectProfile = {
+			headline: profile.headline || null,
+			asOf: asOf?.toISOString() ?? null,
+			experiences: experiences.slice(0, GTM_PIPELINE.profile.experienceLimit),
+		};
 		return [
 			{
 				personId: row.personId,
@@ -142,20 +170,57 @@ export async function runGtmPeople({
 				tier: row.tier,
 				orgFunction: row.orgFunction,
 				seniorityRank: row.seniorityRank,
-				profileAsOf: parseCrawlDate(profile.updated_at),
+				profile: stored as unknown as Prisma.InputJsonValue,
+				profileAsOf: asOf,
 			},
 		];
 	});
 
-	const saved = await savePeople(companyId, people);
+	let verifiedOut = 0;
+	let toSave = people;
+	if (gtmVerifyConfigured() && people.length > 0) {
+		const outcomes = await verifyStillAtCompany(
+			company.name,
+			people.map((person) => ({
+				personId: person.personId,
+				fullName: person.fullName,
+				title: person.title,
+			})),
+		);
+		toSave = people.filter(
+			(person) => outcomes.get(person.personId) !== "left",
+		);
+		verifiedOut = people.length - toSave.length;
+	}
+
+	const saved = await savePeople(companyId, toSave);
 
 	return {
 		saved,
-		tier1: people.filter((person) => person.tier === 1).length,
-		tier2: people.filter((person) => person.tier === 2).length,
+		tier1: toSave.filter((person) => person.tier === 1).length,
+		tier2: toSave.filter((person) => person.tier === 2).length,
 		entities: entities.length,
 		truncated,
+		departed,
+		verifiedOut,
 	};
+}
+
+function toExperiences(rows: ExperienceRow[] | undefined): ProfileExperience[] {
+	if (!Array.isArray(rows)) return [];
+	return rows
+		.filter((row) => row.title || row.company_name)
+		.map((row) => ({
+			title: String(row.title ?? ""),
+			company: String(row.company_name ?? ""),
+			companyId:
+				row.company_id && Number(row.company_id) > 0
+					? String(row.company_id)
+					: null,
+			from: row.date_from ? String(row.date_from) : null,
+			to: row.date_to ? String(row.date_to) : null,
+			current: Number(row.is_current) === 1,
+		}));
 }
 
 async function resolveEntities(
@@ -222,7 +287,8 @@ async function hydrateProfiles(
 			COALESCE(country, '') AS country,
 			COALESCE(connections_count, 0) AS connections_count,
 			COALESCE(follower_count, 0) AS follower_count,
-			toString(updated_at) AS updated_at
+			toString(updated_at) AS updated_at,
+			arrayFilter(x -> x.deleted = 0, experience) AS experience
 		 FROM profiles
 		 WHERE id IN ({hy_ids:Array(Int64)}) AND is_parent = 1 AND deleted = 0
 		 LIMIT {hy_limit:UInt32}`,
@@ -246,6 +312,7 @@ type PersonUpsert = {
 	tier: number;
 	orgFunction: string;
 	seniorityRank: number;
+	profile: Prisma.InputJsonValue;
 	profileAsOf: Date | null;
 };
 

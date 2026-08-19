@@ -54,6 +54,12 @@ export function capabilitiesFrom(
 				"a company's likely buyers — current leadership and departmental titles from a static LinkedIn snapshot, each with a LinkedIn URL",
 		},
 		{
+			...fromEnv("OPENROUTER_API_KEY"),
+			label: "People freshness check",
+			gives:
+				"a web search per suggested person to confirm they still hold the role, so the People tab drops leavers the snapshot missed",
+		},
+		{
 			...fromEnv("PERPLEXITY_API_KEY"),
 			label: "Web research",
 			gives:
