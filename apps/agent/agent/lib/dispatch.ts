@@ -6,6 +6,7 @@ import { settledWithin } from "./deadline";
 import { DISPATCH } from "./dispatch-config";
 import { markRunning, settle } from "./enrichment";
 import { runGranolaBackfill, runGranolaNoteTask } from "./granola-task";
+import { gtmPeopleOutcome, runGtmPeople } from "./gtm-people";
 import { collapsing, runLimited } from "./pool";
 import { runPortrait } from "./portrait";
 import { runQuoContactSyncTask, runQuoSyncTask } from "./quo-contact-sync";
@@ -171,6 +172,12 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 
 	if (task.kind === "quo-contact-sync") {
 		await completeTask(task.id, await runQuoContactSyncTask(task.payload));
+		return;
+	}
+
+	if (task.kind === "gtm-people" && task.companyId) {
+		const result = await runGtmPeople({ companyId: task.companyId });
+		await completeTask(task.id, gtmPeopleOutcome(result));
 		return;
 	}
 

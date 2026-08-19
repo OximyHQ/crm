@@ -48,6 +48,12 @@ export function capabilitiesFrom(
 				"a person's real name, current title, employer and tenure, self-reported, and so authoritative on identity",
 		},
 		{
+			...fromEnv("LINKEDIN_CLICKHOUSE_HOST"),
+			label: "LinkedIn people dataset",
+			gives:
+				"a company's likely buyers — current leadership and departmental titles from a static LinkedIn snapshot, each with a LinkedIn URL",
+		},
+		{
 			...fromEnv("PERPLEXITY_API_KEY"),
 			label: "Web research",
 			gives:
