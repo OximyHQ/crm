@@ -1,5 +1,9 @@
 import { db, type Prisma } from "@crm/db";
-import { GTM_PIPELINE, GTM_UNMATCHED_RANK } from "./gtm-config";
+import {
+	GTM_LEADER_MAX_RANK,
+	GTM_PIPELINE,
+	GTM_UNMATCHED_RANK,
+} from "./gtm-config";
 import { buildCoarseRankSql, matchTitle } from "./gtm-matcher";
 import { analyzeOrg, gtmOrganizeConfigured } from "./gtm-organize";
 import {
@@ -147,6 +151,7 @@ export async function runGtmPeople({
 		return {
 			...NONE,
 			entities: entities.length,
+			resolvedFuzzily: resolution.fuzzy,
 			reason: `Matched ${capped.length} titles, but none of the profiles could be read. Nothing was changed.`,
 		};
 	}
@@ -156,20 +161,22 @@ export async function runGtmPeople({
 	const hydrated = capped.flatMap((row) => {
 		const profile = profiles.get(row.personId);
 		if (!profile?.full_name) return [];
+		const experiences = toExperiences(profile.experience);
 		return [
 			{
 				...row,
 				profile,
-				experiences: toExperiences(profile.experience),
+				experiences,
 				fullName: profile.full_name,
 				asOf: parseCrawlDate(profile.updated_at),
+				left: departedPerProfile(experiences, entityNames, entityIds),
 			},
 		];
 	});
 	const unique = dedupeByName(hydrated).kept;
 	let departed = 0;
 	let present = unique.filter((row) => {
-		if (departedPerProfile(row.experiences, entityNames, entityIds)) {
+		if (row.left) {
 			departed += 1;
 			return false;
 		}
@@ -201,7 +208,7 @@ export async function runGtmPeople({
 				if (!entry.keep) return false;
 				reportsTo.set(row.personId, entry.reportsTo);
 				classified.set(row.personId, {
-					tier: entry.seniorityRank <= 4 ? 1 : 2,
+					tier: entry.seniorityRank <= GTM_LEADER_MAX_RANK ? 1 : 2,
 					orgFunction: entry.orgFunction,
 					seniorityRank: entry.seniorityRank,
 				});
@@ -329,7 +336,7 @@ async function resolveEntities(
 		`SELECT company_id, name, name_lower, employee_count
 		 FROM gtm_companies FINAL
 		 WHERE ${likes.join(" OR ")}
-		 ORDER BY employee_count DESC
+		 ORDER BY employee_count DESC, name ASC
 		 LIMIT {re_limit:UInt32}`,
 		params,
 	);
@@ -369,7 +376,10 @@ async function fetchRoster(entityIds: string[]): Promise<RosterRow[]> {
 			ro_limit: GTM_PIPELINE.roster.coarseLimit,
 			ro_rank: GTM_PIPELINE.roster.maxRank,
 		},
-		{ maxExecutionSeconds: GTM_PIPELINE.roster.maxExecutionSeconds },
+		{
+			maxExecutionSeconds: GTM_PIPELINE.roster.maxExecutionSeconds,
+			retryTimeouts: false,
+		},
 	);
 }
 

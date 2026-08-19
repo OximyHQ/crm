@@ -134,16 +134,40 @@ describe("dedupeByName", () => {
 		expect(dedupeByName(rows).kept).toHaveLength(2);
 	});
 
-	it("handles accented and non-latin names without collapsing to blanks", () => {
+	it("folds accents and merges abbreviation-variant titles", () => {
 		const rows = [
 			{ fullName: "José García", title: "CTO", asOf: new Date("2026-01-01") },
-			{ fullName: "Jose Garcia", title: "CTO", asOf: new Date("2026-02-01") },
+			{
+				fullName: "Jose Garcia",
+				title: "Chief Technology Officer",
+				asOf: new Date("2026-02-01"),
+			},
 			{ fullName: "李伟", title: "CIO", asOf: null },
 			{ fullName: "李伟", title: "CIO", asOf: null },
 		];
 		const { kept } = dedupeByName(rows);
-		expect(kept.filter((row) => row.title === "CTO")).toHaveLength(2);
+		expect(kept.filter((row) => row.fullName.includes("Gar"))).toHaveLength(1);
 		expect(kept.filter((row) => row.title === "CIO")).toHaveLength(1);
+	});
+
+	it("prefers the still-current profile over a fresher departed twin", () => {
+		const rows = [
+			{
+				fullName: "Priya Rao",
+				title: "CTO",
+				asOf: new Date("2026-03-01"),
+				left: true,
+			},
+			{
+				fullName: "Priya Rao",
+				title: "CTO",
+				asOf: new Date("2026-01-01"),
+				left: false,
+			},
+		];
+		const { kept } = dedupeByName(rows);
+		expect(kept).toHaveLength(1);
+		expect(kept[0]?.left).toBe(false);
 	});
 });
 

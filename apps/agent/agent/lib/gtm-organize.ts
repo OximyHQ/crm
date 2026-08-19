@@ -1,5 +1,5 @@
 import { GTM_FUNCTIONS } from "@crm/validation";
-import { GTM_PIPELINE } from "./gtm-config";
+import { GTM_LEADER_MAX_RANK, GTM_PIPELINE } from "./gtm-config";
 import { type OrgAnalysis, parseOrgAnalysis } from "./gtm-report";
 
 export type OrgCandidate = {
@@ -27,11 +27,13 @@ export async function analyzeOrg(
 		start += GTM_PIPELINE.hierarchy.chunk
 	) {
 		const chunk = candidates.slice(start, start + GTM_PIPELINE.hierarchy.chunk);
-		const parsed = await analyzeChunk(key, companyName, chunk, leaders);
+		const parsed =
+			(await analyzeChunk(key, companyName, chunk, leaders)) ??
+			(await analyzeChunk(key, companyName, chunk, leaders));
 		if (!parsed) return null;
 		for (const [id, entry] of parsed) {
 			merged.set(id, entry);
-			if (entry.keep && entry.seniorityRank <= 4) {
+			if (entry.keep && entry.seniorityRank <= GTM_LEADER_MAX_RANK) {
 				const candidate = chunk.find((row) => row.personId === id);
 				if (candidate) leaders.push(candidate);
 			}

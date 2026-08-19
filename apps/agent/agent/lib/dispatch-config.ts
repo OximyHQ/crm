@@ -37,6 +37,7 @@ export const DISPATCH = {
 
 	task: {
 		leaseMs: 10 * MINUTE_MS,
+		outcomeMaxLength: 500,
 	},
 
 	sweep: {

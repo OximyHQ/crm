@@ -344,6 +344,10 @@ export function CompanyPeople({
 				</ToggleGroup>
 			</div>
 
+			{!running && lastOutcome ? (
+				<p className="px-5 pb-2 text-muted-foreground text-xs">{lastOutcome}</p>
+			) : null}
+
 			{view === "chart" ? (
 				<div className="min-h-0 flex-1">
 					{manualForm}

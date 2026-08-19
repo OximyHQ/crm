@@ -17,14 +17,28 @@ export type GtmPeopleResult = {
 };
 
 const FUZZY_NOTE =
-	"Matched by closest company name, not an exact match. Check the company name if these people look wrong.";
+	"Matched to the largest similarly named LinkedIn company, not an exact match. Check the company name if these people look wrong.";
 
 export function gtmPeopleOutcome(result: GtmPeopleResult): string {
 	if (result.reason) return result.reason;
 	if (result.saved === 0) {
-		const base = `No leadership titles matched across ${result.entities} LinkedIn ${
-			result.entities === 1 ? "entity" : "entities"
-		}.`;
+		const cuts: string[] = [];
+		if (result.departed) {
+			cuts.push(
+				`${result.departed} dropped because their own profile shows the role ended`,
+			);
+		}
+		if (result.verifiedOut) {
+			cuts.push(
+				`${result.verifiedOut} dropped after a web check found they left`,
+			);
+		}
+		const base =
+			cuts.length > 0
+				? `Found leaders, but every one was dropped: ${cuts.join(", ")}.`
+				: `No leadership titles matched across ${result.entities} LinkedIn ${
+						result.entities === 1 ? "entity" : "entities"
+					}.`;
 		return result.resolvedFuzzily ? `${base} ${FUZZY_NOTE}` : base;
 	}
 	const notes: string[] = [];
@@ -43,7 +57,7 @@ export function gtmPeopleOutcome(result: GtmPeopleResult): string {
 		notes.push(FUZZY_NOTE);
 	}
 	const tail = notes.length > 0 ? ` ${notes.join(" ")}` : "";
-	return `Saved ${result.saved} people (${result.tier1} Tier 1, ${result.tier2} Tier 2) from ${result.entities} LinkedIn ${
+	return `Saved ${result.saved} ${result.saved === 1 ? "person" : "people"} (${result.tier1} Tier 1, ${result.tier2} Tier 2) from ${result.entities} LinkedIn ${
 		result.entities === 1 ? "entity" : "entities"
 	}.${tail}`;
 }
@@ -63,20 +77,9 @@ export type PersonProfile = {
 	experiences: ProfileExperience[];
 };
 
-const COMPANY_NOISE = /\(.*?\)|\bformerly\b.*$/gi;
-
-function normalizeCompany(value: string): string {
-	return value
-		.toLowerCase()
-		.replace(COMPANY_NOISE, " ")
-		.replace(/[^a-z0-9 ]+/g, " ")
-		.replace(/\s+/g, " ")
-		.trim();
-}
-
 function companiesOverlap(a: string, b: string): boolean {
-	const left = normalizeCompany(a);
-	const right = normalizeCompany(b);
+	const left = normalizeCompanyName(a.replace(/\bformerly\b.*$/i, ""));
+	const right = normalizeCompanyName(b.replace(/\bformerly\b.*$/i, ""));
 	if (!left || !right) return false;
 	return left.includes(right) || right.includes(left);
 }
@@ -210,28 +213,68 @@ export function normalizeEntityName(value: string): string {
 	return normalizeCompanyName(value);
 }
 
+function acronymOf(title: string): string {
+	return title
+		.split(" ")
+		.map((word) => word[0] ?? "")
+		.join("");
+}
+
+function titlesCompatible(a: string, b: string): boolean {
+	const left = normalizePersonName(a);
+	const right = normalizePersonName(b);
+	if (!left || !right) return left === right;
+	return (
+		left === right ||
+		left.includes(right) ||
+		right.includes(left) ||
+		acronymOf(left) === right ||
+		acronymOf(right) === left
+	);
+}
+
 export function dedupeByName<
-	Row extends { fullName: string; title: string; asOf: Date | null },
+	Row extends {
+		fullName: string;
+		title: string;
+		asOf: Date | null;
+		left?: boolean;
+	},
 >(rows: Row[]): { kept: Row[]; dropped: number } {
-	const byKey = new Map<string, Row>();
+	const byName = new Map<string, Row[]>();
+	const blanks: Row[] = [];
 	let dropped = 0;
-	let blanks = 0;
 	for (const row of rows) {
 		const name = normalizePersonName(row.fullName);
-		const key = name
-			? `${name}|${normalizePersonName(row.title)}`
-			: `__blank_${blanks++}`;
-		const existing = byKey.get(key);
-		if (!existing) {
-			byKey.set(key, row);
+		if (!name) {
+			blanks.push(row);
+			continue;
+		}
+		const bucket = byName.get(name);
+		if (!bucket) {
+			byName.set(name, [row]);
+			continue;
+		}
+		const twin = bucket.find((other) =>
+			titlesCompatible(other.title, row.title),
+		);
+		if (!twin) {
+			bucket.push(row);
 			continue;
 		}
 		dropped += 1;
-		const newer =
-			(row.asOf?.getTime() ?? 0) > (existing.asOf?.getTime() ?? 0)
-				? row
-				: existing;
-		byKey.set(key, newer);
+		const winner = pickTwin(twin, row);
+		bucket[bucket.indexOf(twin)] = winner;
 	}
-	return { kept: [...byKey.values()], dropped };
+	return { kept: [...[...byName.values()].flat(), ...blanks], dropped };
+}
+
+function pickTwin<Row extends { asOf: Date | null; left?: boolean }>(
+	a: Row,
+	b: Row,
+): Row {
+	if ((a.left ?? false) !== (b.left ?? false)) {
+		return a.left ? b : a;
+	}
+	return (b.asOf?.getTime() ?? 0) > (a.asOf?.getTime() ?? 0) ? b : a;
 }

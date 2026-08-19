@@ -230,22 +230,26 @@ export const GTM_FUNCTIONS = [
 
 export type GtmOrgFunction = (typeof GTM_FUNCTIONS)[number];
 
-const COMPANY_SUFFIXES =
-	/\b(inc|incorporated|llc|ltd|limited|corp|corporation|gmbh|pvt|private|co|plc|sa|ag|bv)\b/g;
+const TRAILING_COMPANY_SUFFIXES =
+	/(?: (?:inc|incorporated|llc|ltd|limited|corp|corporation|gmbh|pvt|co|plc|sa|ag|bv))+$/;
+
+function foldAccents(value: string): string {
+	return value.normalize("NFD").replace(/\p{M}/gu, "");
+}
 
 export function normalizeCompanyName(value: string): string {
-	return value
+	return foldAccents(value)
 		.toLowerCase()
 		.replace(/\([^()]*\)/g, " ")
 		.replace(/[^\p{L}\p{N} ]+/gu, " ")
-		.replace(COMPANY_SUFFIXES, " ")
 		.replace(/\s+/g, " ")
 		.trim()
-		.replace(/^the /, "");
+		.replace(/^the /, "")
+		.replace(TRAILING_COMPANY_SUFFIXES, "");
 }
 
 export function normalizePersonName(value: string): string {
-	return value
+	return foldAccents(value)
 		.toLowerCase()
 		.replace(/[^\p{L} ]+/gu, " ")
 		.replace(/\s+/g, " ")

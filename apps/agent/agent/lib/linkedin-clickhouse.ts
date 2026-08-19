@@ -21,7 +21,7 @@ export function linkedinClickHouseConfigured(): boolean {
 export async function linkedinQuery<Row = unknown>(
 	query: string,
 	queryParams: Record<string, unknown>,
-	options: { maxExecutionSeconds?: number } = {},
+	options: { maxExecutionSeconds?: number; retryTimeouts?: boolean } = {},
 ): Promise<Row[]> {
 	const clickhouse = linkedinClient();
 	if (!clickhouse) return [];
@@ -49,9 +49,10 @@ export async function linkedinQuery<Row = unknown>(
 			return result.json<Row>();
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			const transient = TRANSIENT_ERRORS.some((value) =>
-				message.includes(value),
-			);
+			const transient =
+				TRANSIENT_ERRORS.some((value) => message.includes(value)) ||
+				((options.retryTimeouts ?? true) &&
+					message.includes("Timeout exceeded"));
 			if (!transient || attempt === LINKEDIN_DISCOVERY.query.retries) {
 				throw error;
 			}
