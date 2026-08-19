@@ -89,7 +89,7 @@ export const GTM_PIPELINE = {
 		baseUrl: "https://openrouter.ai/api/v1",
 	},
 	hierarchy: {
-		cap: 150,
+		chunk: 150,
 		callTimeoutMs: 90_000,
 		model: "google/gemini-3-flash-preview",
 		baseUrl: "https://openrouter.ai/api/v1",

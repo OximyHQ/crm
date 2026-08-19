@@ -3,9 +3,11 @@ import { GTM_PIPELINE, GTM_UNMATCHED_RANK } from "./gtm-config";
 import { buildCoarseRankSql, matchTitle } from "./gtm-matcher";
 import { analyzeOrg, gtmOrganizeConfigured } from "./gtm-organize";
 import {
+	dedupeByName,
 	departedPerProfile,
 	type GtmPeopleResult,
 	nameCandidates,
+	normalizeEntityName,
 	type PersonProfile,
 	type ProfileExperience,
 	parseCrawlDate,
@@ -88,11 +90,12 @@ export async function runGtmPeople({
 		return { ...NONE, reason: "The company has no usable name to resolve." };
 	}
 
-	const entities = await resolveEntities(candidates);
+	const resolution = await resolveEntities(candidates);
+	const entities = resolution.entities;
 	if (entities.length === 0) {
 		return {
 			...NONE,
-			reason: `No LinkedIn company exactly matched "${company.name}". Fix the company name or domain and refresh.`,
+			reason: `No LinkedIn company matched "${company.name}". Fix the company name or domain and refresh.`,
 		};
 	}
 
@@ -136,7 +139,7 @@ export async function runGtmPeople({
 	const entityNames = entities.map((entity) => entity.name);
 	const entityIds = entities.map((entity) => entity.id);
 	let departed = 0;
-	let present = capped.flatMap((row) => {
+	const hydrated = capped.flatMap((row) => {
 		const profile = profiles.get(row.personId);
 		if (!profile?.full_name) return [];
 		const experiences = toExperiences(profile.experience);
@@ -144,8 +147,17 @@ export async function runGtmPeople({
 			departed += 1;
 			return [];
 		}
-		return [{ ...row, profile, experiences }];
+		return [
+			{
+				...row,
+				profile,
+				experiences,
+				fullName: profile.full_name,
+				asOf: parseCrawlDate(profile.updated_at),
+			},
+		];
 	});
+	let present = dedupeByName(hydrated).kept;
 
 	const reportsTo = new Map<string, string | null>();
 	const classified = new Map<
@@ -158,7 +170,7 @@ export async function runGtmPeople({
 			company.name,
 			present.map((row) => ({
 				personId: row.personId,
-				fullName: row.profile.full_name,
+				fullName: row.fullName,
 				title: row.title,
 			})),
 		);
@@ -190,7 +202,7 @@ export async function runGtmPeople({
 	const people = present.flatMap((row) => {
 		const shape = classified.get(row.personId) ?? matchTitle(row.title);
 		if (!shape) return [];
-		const asOf = parseCrawlDate(row.profile.updated_at);
+		const asOf = row.asOf;
 		const stored: PersonProfile = {
 			headline: row.profile.headline || null,
 			asOf: asOf?.toISOString() ?? null,
@@ -248,6 +260,7 @@ export async function runGtmPeople({
 		truncated,
 		departed,
 		verifiedOut,
+		resolvedFuzzily: resolution.fuzzy,
 	};
 }
 
@@ -268,15 +281,21 @@ function toExperiences(rows: ExperienceRow[] | undefined): ProfileExperience[] {
 		}));
 }
 
-async function resolveEntities(
-	candidates: string[],
-): Promise<{ id: string; name: string }[]> {
+type EntityResolution = {
+	entities: { id: string; name: string }[];
+	fuzzy: boolean;
+};
+
+async function resolveEntities(candidates: string[]): Promise<EntityResolution> {
 	const params: Record<string, unknown> = {
 		re_limit: GTM_PIPELINE.resolve.candidateLimit,
 	};
-	const likes = candidates.map((candidate, index) => {
+	const probes = [
+		...new Set([...candidates, ...candidates.map(normalizeEntityName)]),
+	].filter(Boolean);
+	const likes = probes.map((probe, index) => {
 		const key = `re_name_${index}`;
-		params[key] = `%${escapeLike(candidate)}%`;
+		params[key] = `%${escapeLike(probe)}%`;
 		return `name_lower LIKE {${key}:String}`;
 	});
 
@@ -289,11 +308,17 @@ async function resolveEntities(
 		params,
 	);
 
-	const wanted = new Set(candidates);
-	return rows
-		.filter((row) => wanted.has(row.name_lower.trim()))
-		.slice(0, GTM_PIPELINE.resolve.entityLimit)
-		.map((row) => ({ id: String(row.company_id), name: row.name }));
+	const wanted = new Set(candidates.map(normalizeEntityName));
+	const exact = rows.filter((row) =>
+		wanted.has(normalizeEntityName(row.name_lower)),
+	);
+	const picked = exact.length > 0 ? exact : rows;
+	return {
+		entities: picked
+			.slice(0, GTM_PIPELINE.resolve.entityLimit)
+			.map((row) => ({ id: String(row.company_id), name: row.name })),
+		fuzzy: exact.length === 0 && rows.length > 0,
+	};
 }
 
 function escapeLike(value: string): string {

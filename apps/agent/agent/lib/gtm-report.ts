@@ -8,6 +8,7 @@ export type GtmPeopleResult = {
 	truncated: boolean;
 	departed?: number;
 	verifiedOut?: number;
+	resolvedFuzzily?: boolean;
 	reason?: string;
 };
 
@@ -28,6 +29,11 @@ export function gtmPeopleOutcome(result: GtmPeopleResult): string {
 	if (result.verifiedOut) {
 		notes.push(
 			`${result.verifiedOut} dropped after a web check found they left.`,
+		);
+	}
+	if (result.resolvedFuzzily) {
+		notes.push(
+			"Matched by closest company name, not an exact match — check the company name if these people look wrong.",
 		);
 	}
 	const tail = notes.length > 0 ? ` ${notes.join(" ")}` : "";
@@ -190,4 +196,43 @@ export function parseCrawlDate(value: string | null | undefined): Date | null {
 		: trimmed;
 	const parsed = new Date(candidate);
 	return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function normalizeEntityName(value: string): string {
+	return value
+		.toLowerCase()
+		.replace(/[^a-z0-9 ]+/g, " ")
+		.replace(/\s+/g, " ")
+		.trim()
+		.replace(/^the /, "");
+}
+
+export function dedupeByName<
+	Row extends { fullName: string; asOf: Date | null },
+>(rows: Row[]): { kept: Row[]; dropped: number } {
+	const byName = new Map<string, Row>();
+	let dropped = 0;
+	for (const row of rows) {
+		const key = row.fullName
+			.toLowerCase()
+			.replace(/[^a-z ]+/g, " ")
+			.replace(/\s+/g, " ")
+			.trim();
+		if (!key) {
+			byName.set(`__blank_${dropped + byName.size}`, row);
+			continue;
+		}
+		const existing = byName.get(key);
+		if (!existing) {
+			byName.set(key, row);
+			continue;
+		}
+		dropped += 1;
+		const newer =
+			(row.asOf?.getTime() ?? 0) > (existing.asOf?.getTime() ?? 0)
+				? row
+				: existing;
+		byName.set(key, newer);
+	}
+	return { kept: [...byName.values()], dropped };
 }

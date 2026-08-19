@@ -19,25 +19,51 @@ export async function analyzeOrg(
 	const key = process.env.OPENROUTER_API_KEY?.trim();
 	if (!key || candidates.length === 0) return null;
 
-	const roster = candidates
-		.slice(0, GTM_PIPELINE.hierarchy.cap)
-		.map((candidate) => ({
-			id: candidate.personId,
-			name: candidate.fullName,
-			title: candidate.title,
-		}));
+	const merged = new Map<string, OrgAnalysis>();
+	for (
+		let start = 0;
+		start < candidates.length;
+		start += GTM_PIPELINE.hierarchy.chunk
+	) {
+		const chunk = candidates.slice(
+			start,
+			start + GTM_PIPELINE.hierarchy.chunk,
+		);
+		const parsed = await analyzeChunk(key, companyName, chunk);
+		if (parsed) {
+			for (const [id, entry] of parsed) merged.set(id, entry);
+		}
+	}
+
+	return merged.size > 0 ? merged : null;
+}
+
+async function analyzeChunk(
+	key: string,
+	companyName: string,
+	candidates: OrgCandidate[],
+): Promise<Map<string, OrgAnalysis> | null> {
+	const roster = candidates.map((candidate) => ({
+		id: candidate.personId,
+		name: candidate.fullName,
+		title: candidate.title,
+	}));
 
 	const prompt =
 		`You are mapping the likely org structure of ${companyName}. Below is ` +
 		`a list of people from a LinkedIn snapshot, each with an id, name and ` +
 		`raw title.\n\n${JSON.stringify(roster)}\n\n` +
 		`For EVERY id, decide:\n` +
-		`- keep: true when the person is genuine leadership or a departmental ` +
-		`decision-maker (founders, C-suite, presidents, VPs, heads and ` +
-		`directors of engineering, technology, IT, security, data, AI, ` +
-		`platform, infrastructure, and the CFO/COO). false for individual ` +
-		`contributors, assistants, interns, office/program staff (e.g. ` +
-		`"CEO's Office"), and managers who do not lead a department.\n` +
+		`- keep: true when the person is a decision-maker a company selling ` +
+		`AI infrastructure would talk to: founders, the CEO/CFO/COO/president, ` +
+		`and the C-suite, VPs, heads and directors of engineering, technology, ` +
+		`IT, security, data, AI, platform and infrastructure. false for ` +
+		`everyone else — individual contributors, assistants, office/program ` +
+		`staff (e.g. "CEO's Office"), managers who do not lead a department, ` +
+		`and leaders of sales, marketing, HR, people, talent, growth, legal, ` +
+		`corporate development or delivery, even at chief level. When two ids ` +
+		`are clearly the same human (same or near-identical name), keep only ` +
+		`one and mark the rest false.\n` +
 		`- function: exactly one of ${GTM_FUNCTIONS.map((f) => `"${f}"`).join(", ")}.\n` +
 		`- seniority: 1 founder/CEO, 2 C-suite, 3 EVP/SVP, 4 VP, ` +
 		`5 head of, 6 director, 7 manager, 8 other.\n` +

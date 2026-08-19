@@ -1,9 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import {
+	dedupeByName,
 	departedPerProfile,
 	gtmPeopleOutcome,
 	nameCandidates,
 	type ProfileExperience,
+	normalizeEntityName,
 	parseCrawlDate,
 	parseOrgAnalysis,
 	parseVerifyAnswer,
@@ -77,6 +79,36 @@ describe("departedPerProfile", () => {
 				["92538015"],
 			),
 		).toBe(true);
+	});
+});
+
+describe("normalizeEntityName", () => {
+	it("strips the leading article and punctuation", () => {
+		expect(normalizeEntityName("The Wall Street Journal")).toBe(
+			"wall street journal",
+		);
+		expect(normalizeEntityName("wall street journal")).toBe(
+			"wall street journal",
+		);
+		expect(normalizeEntityName("BrowserStack, Inc.")).toBe(
+			"browserstack inc",
+		);
+	});
+});
+
+describe("dedupeByName", () => {
+	it("keeps the freshest profile for a repeated human", () => {
+		const rows = [
+			{ fullName: "Balaji Uppili", asOf: new Date("2026-02-13") },
+			{ fullName: "Balaji  Uppili", asOf: new Date("2026-03-03") },
+			{ fullName: "Someone Else", asOf: null },
+		];
+		const { kept, dropped } = dedupeByName(rows);
+		expect(dropped).toBe(1);
+		expect(kept).toHaveLength(2);
+		expect(
+			kept.find((row) => row.fullName.startsWith("Balaji"))?.asOf,
+		).toEqual(new Date("2026-03-03"));
 	});
 });
 

@@ -287,6 +287,7 @@ export function CompanyOrgChart({
 				maxZoom={1.5}
 				nodesConnectable={false}
 				deleteKeyCode={null}
+				proOptions={{ hideAttribution: true }}
 				panOnScroll
 				zoomOnScroll={false}
 				zoomOnPinch
