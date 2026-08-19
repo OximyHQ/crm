@@ -1,13 +1,10 @@
-import type { Db, ProspectStatus } from "@crm/db";
+import type { CompanyPersonStatus, Db } from "@crm/db";
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { InjectDatabase } from "../database/database.constants";
-import {
-	type ProspectProfile,
-	parseProspectProfile,
-} from "./prospects.contracts";
+import { type PersonProfile, parsePersonProfile } from "./people.contracts";
 
-export type ProspectRow = {
+export type CompanyPersonRow = {
 	id: string;
 	personId: string;
 	fullName: string;
@@ -24,22 +21,22 @@ export type ProspectRow = {
 	seniorityRank: number;
 	reportsToPersonId: string | null;
 	profileAsOf: string | null;
-	status: ProspectStatus;
+	status: CompanyPersonStatus;
 	contactId: string | null;
 	updatedAt: string;
 };
 
 @Injectable()
-export class ProspectsService {
-	private readonly logger = new Logger(ProspectsService.name);
+export class PeopleService {
+	private readonly logger = new Logger(PeopleService.name);
 
 	constructor(
 		@InjectDatabase() private readonly db: Db,
 		private readonly agent: AgentTriggerService,
 	) {}
 
-	async list(companyId: string): Promise<ProspectRow[]> {
-		const rows = await this.db.companyProspect.findMany({
+	async list(companyId: string): Promise<CompanyPersonRow[]> {
+		const rows = await this.db.companyPerson.findMany({
 			where: { companyId },
 			orderBy: [
 				{ seniorityRank: "asc" },
@@ -74,9 +71,9 @@ export class ProspectsService {
 
 	async byId(
 		id: string,
-	): Promise<ProspectRow & { profile: ProspectProfile | null }> {
-		const row = await this.db.companyProspect.findUnique({ where: { id } });
-		if (!row) throw new NotFoundException(`No prospect with id ${id}.`);
+	): Promise<CompanyPersonRow & { profile: PersonProfile | null }> {
+		const row = await this.db.companyPerson.findUnique({ where: { id } });
+		if (!row) throw new NotFoundException(`No person with id ${id}.`);
 
 		return {
 			id: row.id,
@@ -98,49 +95,49 @@ export class ProspectsService {
 			status: effectiveStatus(row),
 			contactId: row.contactId,
 			updatedAt: row.updatedAt.toISOString(),
-			profile: parseProspectProfile(row.profile),
+			profile: parsePersonProfile(row.profile),
 		};
 	}
 
 	async addAsContact(
 		id: string,
 	): Promise<{ contactId: string; linked: boolean }> {
-		const prospect = await this.db.companyProspect.findUnique({
+		const person = await this.db.companyPerson.findUnique({
 			where: { id },
 			include: { company: { select: { ownerId: true } } },
 		});
 
-		if (!prospect) {
-			throw new NotFoundException(`No prospect with id ${id}.`);
+		if (!person) {
+			throw new NotFoundException(`No person with id ${id}.`);
 		}
 
-		if (prospect.contactId) {
-			return { contactId: prospect.contactId, linked: true };
+		if (person.contactId) {
+			return { contactId: person.contactId, linked: true };
 		}
 
 		const existingId = await this.matchExistingContact(
-			prospect.companyId,
-			prospect.linkedinUrl,
-			prospect.fullName,
+			person.companyId,
+			person.linkedinUrl,
+			person.fullName,
 		);
 		if (existingId) {
-			await this.db.companyProspect.update({
+			await this.db.companyPerson.update({
 				where: { id },
 				data: { status: "ADDED", contactId: existingId },
 			});
 			return { contactId: existingId, linked: true };
 		}
 
-		const name = splitName(prospect.fullName);
+		const name = splitName(person.fullName);
 		const contact = await this.agent.withCrmEvents(async (tx, emit) => {
 			const created = await tx.contact.create({
 				data: {
 					firstName: name.firstName,
 					lastName: name.lastName,
-					title: prospect.title,
-					linkedinUrl: prospect.linkedinUrl,
-					companyId: prospect.companyId,
-					ownerId: prospect.company.ownerId,
+					title: person.title,
+					linkedinUrl: person.linkedinUrl,
+					companyId: person.companyId,
+					ownerId: person.company.ownerId,
 					source: "PROSPECTING",
 				},
 				select: {
@@ -163,7 +160,7 @@ export class ProspectsService {
 					companyId: created.companyId,
 				},
 			});
-			await tx.companyProspect.update({
+			await tx.companyPerson.update({
 				where: { id },
 				data: { status: "ADDED", contactId: created.id },
 			});
@@ -173,44 +170,48 @@ export class ProspectsService {
 		await this.agent.contactCreated(contact.id, "Promoted from the People tab");
 
 		this.logger.log({
-			message: "Prospect added as contact",
-			prospectId: id,
+			message: "Person promoted to contact",
+			companyPersonId: id,
 			contactId: contact.id,
 		});
 
 		return { contactId: contact.id, linked: false };
 	}
 
-	async dismiss(id: string): Promise<{ id: string; status: ProspectStatus }> {
-		const { count } = await this.db.companyProspect.updateMany({
+	async dismiss(
+		id: string,
+	): Promise<{ id: string; status: CompanyPersonStatus }> {
+		const { count } = await this.db.companyPerson.updateMany({
 			where: { id, status: "SUGGESTED" },
 			data: { status: "DISMISSED" },
 		});
 
 		if (count === 0) {
-			const row = await this.db.companyProspect.findUnique({
+			const row = await this.db.companyPerson.findUnique({
 				where: { id },
 				select: { status: true },
 			});
-			if (!row) throw new NotFoundException(`No prospect with id ${id}.`);
+			if (!row) throw new NotFoundException(`No person with id ${id}.`);
 			return { id, status: row.status };
 		}
 
 		return { id, status: "DISMISSED" };
 	}
 
-	async restore(id: string): Promise<{ id: string; status: ProspectStatus }> {
-		const { count } = await this.db.companyProspect.updateMany({
+	async restore(
+		id: string,
+	): Promise<{ id: string; status: CompanyPersonStatus }> {
+		const { count } = await this.db.companyPerson.updateMany({
 			where: { id, status: "DISMISSED" },
 			data: { status: "SUGGESTED" },
 		});
 
 		if (count === 0) {
-			const row = await this.db.companyProspect.findUnique({
+			const row = await this.db.companyPerson.findUnique({
 				where: { id },
 				select: { status: true },
 			});
-			if (!row) throw new NotFoundException(`No prospect with id ${id}.`);
+			if (!row) throw new NotFoundException(`No person with id ${id}.`);
 			return { id, status: row.status };
 		}
 
@@ -290,9 +291,9 @@ export class ProspectsService {
 }
 
 function effectiveStatus(row: {
-	status: ProspectStatus;
+	status: CompanyPersonStatus;
 	contactId: string | null;
-}): ProspectStatus {
+}): CompanyPersonStatus {
 	return row.status === "ADDED" && !row.contactId ? "SUGGESTED" : row.status;
 }
 

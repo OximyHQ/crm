@@ -49,7 +49,8 @@ agent and the API both need it.
 
 | | Kinds | How | Per tick |
 | --- | --- | --- | --- |
-| **Visible** | `brand`, `portrait`, `granola-backfill`, `granola-note`, `gtm-people` | Directly — no `receive`, no model | 60, six at a time |
+| **Visible** | `brand`, `portrait`, `granola-backfill`, `granola-note`, … | Directly — no `receive`, no eve session | 60, six at a time |
+| **GTM** | `gtm-people` | Directly, with its own lease and timeout — the run makes OpenRouter calls | 4, two at a time |
 | **Research** | everything else | One eve session per row | 12 |
 
 **Neither visible kind has anything to decide**, and through a session they queued
@@ -70,24 +71,26 @@ Automatic `company-profile` tasks never add people. Manual company requests use
 `company-prospecting`, which can add sourced ICP contacts after loading the
 prospecting skill.
 
-`gtm-people` is deterministic, which is why it is direct: resolve the company in
-the LinkedIn ClickHouse snapshot (`gtm_companies` by name and domain root), pull
-its current roster from `profile_company_lookup`, keep only titles matching the
-hardcoded ICP tiers (`lib/gtm-config.ts`), and upsert `CompanyProspect` rows for
-the People tab. Suggestions never become contacts on their own — a rep promotes
-them, and the promote path lives in the API (`ProspectsService`), because filing
-a stored suggestion decides nothing. Re-runs refresh data, keep `ADDED` and
-`DISMISSED` decisions, and delete `SUGGESTED` rows that no longer match. The
-dataset is a static crawl, so every row carries `profileAsOf` and the sheet
-shows it. `LINKEDIN_CLICKHOUSE_HOST` unset means the capability is off and the
-task settles with a reason, never an error.
+`gtm-people` fills the People tab: resolve the company in the LinkedIn
+ClickHouse snapshot (`gtm_companies`, exact name match only), pull its roster
+through a generic seniority filter (`lib/gtm-matcher.ts` — structural title
+markers, not a role taxonomy), then let one OpenRouter call decide who is real
+leadership, their function, and who reports to whom (`lib/gtm-organize.ts`),
+with a web check per person for leavers (`lib/gtm-verify.ts`). No
+`OPENROUTER_API_KEY` means the keyword fallback and no hierarchy. Suggestions
+never become contacts on their own — a rep promotes them, and the promote path
+lives in the API (`PeopleService`), because filing a stored suggestion decides
+nothing. Re-runs keep `ADDED` and `DISMISSED` decisions and delete `SUGGESTED`
+rows that no longer match; an empty run deletes nothing. Every row carries
+`profileAsOf` because the crawl is static. A failure completes the task with a
+reason — it never touches the company's enrichment status.
 
 **`claimDue` sorts what it claims** — Postgres does not order `UPDATE … RETURNING` by
 its sub-select's `ORDER BY`.
 
 ### Dispatch on demand
 
-`POST /internal/crm/dispatch` drains **both lanes**; `AgentTriggerService.poke()` calls
+`POST /internal/crm/dispatch` drains **every lane**; `AgentTriggerService.poke()` calls
 it after writing any `AgentTask`.
 
 - **Fire-and-forget, never awaited** — the row is still the message.

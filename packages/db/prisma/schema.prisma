@@ -370,7 +370,7 @@ enum RecordSource {
   PROSPECTING
 }
 
-enum ProspectStatus {
+enum CompanyPersonStatus {
   SUGGESTED
   ADDED
   DISMISSED
@@ -499,7 +499,7 @@ model Company {
   emailThreads   EmailThread[]
   calendarEvents CalendarEvent[]
   fieldValues    FieldValue[]
-  prospects      CompanyProspect[]
+  people         CompanyPerson[]
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
 
@@ -519,7 +519,7 @@ model CompanyEnrichment {
   @@map("companyEnrichment")
 }
 
-model CompanyProspect {
+model CompanyPerson {
   id        String  @id @default(cuid())
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -547,7 +547,7 @@ model CompanyProspect {
 
   profileAsOf DateTime?
 
-  status    ProspectStatus @default(SUGGESTED)
+  status    CompanyPersonStatus @default(SUGGESTED)
   contactId String?        @unique
   contact   Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
@@ -556,7 +556,7 @@ model CompanyProspect {
 
   @@unique([companyId, personId])
   @@index([companyId, status])
-  @@map("companyProspect")
+  @@map("companyPerson")
 }
 
 model Contact {
@@ -601,7 +601,7 @@ model Contact {
   submissions               FormSubmission[]           @relation("SubmissionContact")
   phones                    ContactPhone[]
   communicationParticipants CommunicationParticipant[]
-  prospect                  CompanyProspect?
+  person                    CompanyPerson?
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
 

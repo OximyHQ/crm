@@ -45,7 +45,7 @@ export type ProfileExperience = {
 	current: boolean;
 };
 
-export type ProspectProfile = {
+export type PersonProfile = {
 	headline: string | null;
 	asOf: string | null;
 	experiences: ProfileExperience[];

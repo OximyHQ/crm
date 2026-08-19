@@ -1,16 +1,16 @@
 import { z } from "zod";
 
-export const prospectListInput = z.object({
+export const personListInput = z.object({
 	companyId: z.string(),
 });
 
-export type ProspectListInput = z.infer<typeof prospectListInput>;
+export type PersonListInput = z.infer<typeof personListInput>;
 
-export const prospectIdInput = z.object({ id: z.string() });
+export const personIdInput = z.object({ id: z.string() });
 
-export const prospectCompanyInput = z.object({ companyId: z.string() });
+export const personCompanyInput = z.object({ companyId: z.string() });
 
-export const prospectProfileSchema = z.object({
+export const personProfileSchema = z.object({
 	headline: z.string().nullable().catch(null),
 	asOf: z.string().nullable().catch(null),
 	experiences: z
@@ -27,10 +27,10 @@ export const prospectProfileSchema = z.object({
 		.catch([]),
 });
 
-export type ProspectProfile = z.infer<typeof prospectProfileSchema>;
+export type PersonProfile = z.infer<typeof personProfileSchema>;
 
-export function parseProspectProfile(value: unknown): ProspectProfile | null {
+export function parsePersonProfile(value: unknown): PersonProfile | null {
 	if (!value || typeof value !== "object") return null;
-	const parsed = prospectProfileSchema.safeParse(value);
+	const parsed = personProfileSchema.safeParse(value);
 	return parsed.success ? parsed.data : null;
 }

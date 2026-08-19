@@ -44,7 +44,7 @@ import { CompanyOrgChart } from "./company-org-chart";
 import { PersonProfileDialog } from "./person-profile-dialog";
 import { QuickAddContact } from "./quick-add";
 
-export type Prospect = RouterOutputs["prospects"]["list"][number];
+export type CompanyPersonRow = RouterOutputs["people"]["list"][number];
 
 const ALL = "all";
 
@@ -59,8 +59,8 @@ const PEOPLE_COLUMNS = [
 	{ id: "actions", srLabel: "Actions", width: "w-[9%]" },
 ];
 
-function locationOf(prospect: Prospect): string | null {
-	const parts = [prospect.city, prospect.country].filter(Boolean);
+function locationOf(person: CompanyPersonRow): string | null {
+	const parts = [person.city, person.country].filter(Boolean);
 	return parts.length > 0 ? parts.join(", ") : null;
 }
 
@@ -77,7 +77,7 @@ export function CompanyPeople({
 	const cache = useCrmCache();
 
 	const statusQuery = useQuery({
-		...trpc.prospects.status.queryOptions({ companyId }),
+		...trpc.people.status.queryOptions({ companyId }),
 		refetchInterval: (current) =>
 			current.state.data?.running ? ENRICHMENT_POLL_MS : false,
 	});
@@ -85,14 +85,14 @@ export function CompanyPeople({
 	const lastOutcome = statusQuery.data?.lastOutcome ?? null;
 
 	const query = useQuery({
-		...trpc.prospects.list.queryOptions({ companyId }),
+		...trpc.people.list.queryOptions({ companyId }),
 		refetchInterval: running ? ENRICHMENT_POLL_MS : false,
 	});
 
 	const wasRunning = useRef(false);
 	useEffect(() => {
 		if (wasRunning.current && !running) {
-			void cache.prospects(companyId);
+			void cache.people(companyId);
 		}
 		wasRunning.current = running;
 	}, [running, companyId, cache]);
@@ -135,10 +135,10 @@ export function CompanyPeople({
 		});
 	}, [rows, q, orgFunction, country, showDismissed]);
 
-	const invalidate = () => cache.prospects(companyId);
+	const invalidate = () => cache.people(companyId);
 
 	const add = useMutation(
-		trpc.prospects.addAsContact.mutationOptions({
+		trpc.people.addAsContact.mutationOptions({
 			onSuccess: () => {
 				toast.success("Added to contacts.");
 				void invalidate();
@@ -148,24 +148,24 @@ export function CompanyPeople({
 	);
 
 	const dismiss = useMutation(
-		trpc.prospects.dismiss.mutationOptions({
+		trpc.people.dismiss.mutationOptions({
 			onSuccess: () => void invalidate(),
 			onError: (error) => toast.error(error.message),
 		}),
 	);
 
 	const restore = useMutation(
-		trpc.prospects.restore.mutationOptions({
+		trpc.people.restore.mutationOptions({
 			onSuccess: () => void invalidate(),
 			onError: (error) => toast.error(error.message),
 		}),
 	);
 
 	const refresh = useMutation(
-		trpc.prospects.refresh.mutationOptions({
+		trpc.people.refresh.mutationOptions({
 			onSuccess: () => {
 				toast.success("Queued. People will refresh shortly.");
-				void cache.prospects(companyId);
+				void cache.people(companyId);
 			},
 			onError: (error) => toast.error(error.message),
 		}),
@@ -239,7 +239,7 @@ export function CompanyPeople({
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">
 			<PersonProfileDialog
-				prospectId={openId}
+				personRowId={openId}
 				onClose={() => setOpenId(null)}
 				onAdd={(id) => add.mutate({ id })}
 				adding={add.isPending}
@@ -353,57 +353,53 @@ export function CompanyPeople({
 				<div className="min-h-0 flex-1 overflow-y-auto">
 					{manualForm}
 					<SimpleTable variant="panel" columns={PEOPLE_COLUMNS}>
-						{visible.map((prospect) => (
+						{visible.map((person) => (
 							<SimpleTableRow
-								key={prospect.id}
+								key={person.id}
 								clickable
-								onClick={() => setOpenId(prospect.id)}
+								onClick={() => setOpenId(person.id)}
 							>
 								<TableCell className="truncate py-2.5 pr-3 pl-5 font-medium">
 									<span className="flex min-w-0 items-center gap-2">
-										<PersonAvatar
-											src={null}
-											name={prospect.fullName}
-											size="sm"
-										/>
+										<PersonAvatar src={null} name={person.fullName} size="sm" />
 										<span
 											className={
-												prospect.status === "DISMISSED"
+												person.status === "DISMISSED"
 													? "truncate text-muted-foreground line-through"
 													: "truncate"
 											}
 										>
-											{prospect.fullName}
+											{person.fullName}
 										</span>
-										{prospect.status === "ADDED" ? (
+										{person.status === "ADDED" ? (
 											<Badge variant="outline">In CRM</Badge>
 										) : null}
 									</span>
 								</TableCell>
 								<TableCell className="truncate px-3 py-2.5">
-									{prospect.title}
+									{person.title}
 								</TableCell>
 								<TableCell className="truncate px-3 py-2.5 text-muted-foreground">
-									{prospect.orgFunction}
+									{person.orgFunction}
 								</TableCell>
 								<TableCell className="truncate px-3 py-2.5 text-muted-foreground">
-									{locationOf(prospect) ?? <EmptyCellValue />}
+									{locationOf(person) ?? <EmptyCellValue />}
 								</TableCell>
 								<TableCell className="px-3 py-2.5 text-muted-foreground">
-									{prospect.profileAsOf ? (
-										<LocalDay date={prospect.profileAsOf} />
+									{person.profileAsOf ? (
+										<LocalDay date={person.profileAsOf} />
 									) : (
 										<EmptyCellValue />
 									)}
 								</TableCell>
 								<TableCell className="px-3 py-2.5">
 									<span className="flex items-center justify-end gap-1">
-										{prospect.linkedinUrl ? (
+										{person.linkedinUrl ? (
 											<Tooltip>
 												<TooltipTrigger asChild>
 													<Button variant="ghost" size="icon-xs" asChild>
 														<a
-															href={prospect.linkedinUrl}
+															href={person.linkedinUrl}
 															target="_blank"
 															rel="noopener noreferrer"
 															onClick={(event) => event.stopPropagation()}
@@ -416,7 +412,7 @@ export function CompanyPeople({
 												<TooltipContent>Open LinkedIn</TooltipContent>
 											</Tooltip>
 										) : null}
-										{prospect.status === "SUGGESTED" ? (
+										{person.status === "SUGGESTED" ? (
 											<>
 												<Tooltip>
 													<TooltipTrigger asChild>
@@ -426,7 +422,7 @@ export function CompanyPeople({
 															disabled={add.isPending}
 															onClick={(event) => {
 																event.stopPropagation();
-																add.mutate({ id: prospect.id });
+																add.mutate({ id: person.id });
 															}}
 														>
 															<Icon icon={Add} />
@@ -443,7 +439,7 @@ export function CompanyPeople({
 															disabled={dismiss.isPending}
 															onClick={(event) => {
 																event.stopPropagation();
-																dismiss.mutate({ id: prospect.id });
+																dismiss.mutate({ id: person.id });
 															}}
 														>
 															<Icon icon={Close} />
@@ -454,7 +450,7 @@ export function CompanyPeople({
 												</Tooltip>
 											</>
 										) : null}
-										{prospect.status === "DISMISSED" ? (
+										{person.status === "DISMISSED" ? (
 											<Tooltip>
 												<TooltipTrigger asChild>
 													<Button
@@ -463,7 +459,7 @@ export function CompanyPeople({
 														disabled={restore.isPending}
 														onClick={(event) => {
 															event.stopPropagation();
-															restore.mutate({ id: prospect.id });
+															restore.mutate({ id: person.id });
 														}}
 													>
 														<Icon icon={Reset} />

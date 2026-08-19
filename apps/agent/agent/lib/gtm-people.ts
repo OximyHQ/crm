@@ -6,8 +6,8 @@ import {
 	departedPerProfile,
 	type GtmPeopleResult,
 	nameCandidates,
+	type PersonProfile,
 	type ProfileExperience,
-	type ProspectProfile,
 	parseCrawlDate,
 } from "./gtm-report";
 import { gtmVerifyConfigured, verifyStillAtCompany } from "./gtm-verify";
@@ -191,7 +191,7 @@ export async function runGtmPeople({
 		const shape = classified.get(row.personId) ?? matchTitle(row.title);
 		if (!shape) return [];
 		const asOf = parseCrawlDate(row.profile.updated_at);
-		const stored: ProspectProfile = {
+		const stored: PersonProfile = {
 			headline: row.profile.headline || null,
 			asOf: asOf?.toISOString() ?? null,
 			experiences: row.experiences.slice(
@@ -371,7 +371,7 @@ async function savePeople(
 ): Promise<number> {
 	if (people.length === 0) return 0;
 
-	const existing = await db.companyProspect.findMany({
+	const existing = await db.companyPerson.findMany({
 		where: { companyId },
 		select: { personId: true },
 	});
@@ -381,7 +381,7 @@ async function savePeople(
 	const stale = people.filter((person) => known.has(person.personId));
 
 	if (fresh.length > 0) {
-		await db.companyProspect.createMany({
+		await db.companyPerson.createMany({
 			data: fresh.map((person) => ({ companyId, ...person })),
 			skipDuplicates: true,
 		});
@@ -392,7 +392,7 @@ async function savePeople(
 		const chunk = stale.slice(start, start + chunkSize);
 		await Promise.all(
 			chunk.map(({ personId, ...data }) =>
-				db.companyProspect.update({
+				db.companyPerson.update({
 					where: { companyId_personId: { companyId, personId } },
 					data,
 				}),
@@ -400,7 +400,7 @@ async function savePeople(
 		);
 	}
 
-	await db.companyProspect.deleteMany({
+	await db.companyPerson.deleteMany({
 		where: {
 			companyId,
 			status: "SUGGESTED",

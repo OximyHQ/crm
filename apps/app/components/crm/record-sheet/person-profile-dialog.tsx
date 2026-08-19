@@ -21,12 +21,12 @@ import { useTRPC } from "@/lib/trpc/client";
 import { useOpenRecord } from "./record-stack";
 
 export function PersonProfileDialog({
-	prospectId,
+	personRowId,
 	onClose,
 	onAdd,
 	adding,
 }: {
-	prospectId: string | null;
+	personRowId: string | null;
 	onClose: () => void;
 	onAdd: (id: string) => void;
 	adding: boolean;
@@ -35,8 +35,8 @@ export function PersonProfileDialog({
 	const openRecord = useOpenRecord();
 
 	const query = useQuery({
-		...trpc.prospects.byId.queryOptions({ id: prospectId ?? "" }),
-		enabled: prospectId !== null,
+		...trpc.people.byId.queryOptions({ id: personRowId ?? "" }),
+		enabled: personRowId !== null,
 	});
 
 	const person = query.data;
@@ -46,7 +46,7 @@ export function PersonProfileDialog({
 
 	return (
 		<Dialog
-			open={prospectId !== null}
+			open={personRowId !== null}
 			onOpenChange={(open) => {
 				if (!open) onClose();
 			}}

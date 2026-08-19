@@ -158,10 +158,9 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 		? isEnriching(company.enrichmentStatus, company.queued)
 		: false;
 
-	const prospects = useQuery(trpc.prospects.list.queryOptions({ companyId }));
-	const peopleCount = prospects.data
-		? prospects.data.filter((prospect) => prospect.status !== "DISMISSED")
-				.length
+	const people = useQuery(trpc.people.list.queryOptions({ companyId }));
+	const peopleCount = people.data
+		? people.data.filter((person) => person.status !== "DISMISSED").length
 		: null;
 
 	const location = company
