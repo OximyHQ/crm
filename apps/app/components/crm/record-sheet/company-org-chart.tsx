@@ -40,13 +40,11 @@ const LANES = [
 ];
 
 const CHART = {
-	laneWidth: 268,
+	laneWidth: 210,
 	leaderY: 170,
 	rowHeight: 110,
 	rootY: 0,
-	levelGap: 150,
-	stackGap: 96,
-	stackThreshold: 3,
+	levelGap: 140,
 } as const;
 
 type PersonDatum = {
@@ -67,21 +65,19 @@ function PersonNode({ data }: NodeProps<PersonFlowNode>) {
 	return (
 		<button
 			type="button"
-			className="w-60 cursor-pointer rounded-md border bg-background px-3 py-2 text-left shadow-xs"
+			className="w-48 cursor-pointer rounded-md border bg-background px-2.5 py-1.5 text-left shadow-xs"
 			onClick={() => onOpen(person.id)}
 		>
 			<Handle type="target" position={Position.Top} isConnectable={false} />
-			<span className="block truncate text-sm font-medium">
-				{person.fullName}
+			<span className="flex min-w-0 items-center gap-1.5">
+				<span className="truncate text-xs font-medium">{person.fullName}</span>
+				{person.status === "ADDED" ? (
+					<Badge variant="outline">In CRM</Badge>
+				) : null}
 			</span>
-			<span className="block truncate text-xs text-muted-foreground">
+			<span className="block truncate text-[11px] text-muted-foreground">
 				{person.title}
 			</span>
-			{person.status === "ADDED" ? (
-				<span className="mt-1.5 block">
-					<Badge variant="outline">In CRM</Badge>
-				</span>
-			) : null}
 			<Handle type="source" position={Position.Bottom} isConnectable={false} />
 		</button>
 	);
@@ -128,23 +124,13 @@ function buildTreeFlow(
 		}
 	}
 
-	const isLeaf = (person: ChartPerson): boolean =>
-		(children.get(person.personId) ?? []).length === 0;
-
-	const split = (person: ChartPerson) => {
-		const kids = children.get(person.personId) ?? [];
-		const leaves = kids.filter(isLeaf);
-		const stacked =
-			leaves.length >= CHART.stackThreshold ? leaves : ([] as ChartPerson[]);
-		const spread = kids.filter((kid) => !stacked.includes(kid));
-		return { stacked, spread };
-	};
-
 	const widths = new Map<string, number>();
 	const measure = (person: ChartPerson): number => {
-		const { stacked, spread } = split(person);
-		const spreadWidth = spread.reduce((total, kid) => total + measure(kid), 0);
-		const width = Math.max(1, spreadWidth + (stacked.length > 0 ? 1 : 0));
+		const kids = children.get(person.personId) ?? [];
+		const width = Math.max(
+			1,
+			kids.reduce((total, kid) => total + measure(kid), 0),
+		);
 		widths.set(person.personId, width);
 		return width;
 	};
@@ -154,47 +140,28 @@ function buildTreeFlow(
 	const edges: Edge[] = [];
 	const singleRoot = roots.length === 1;
 
-	const place = (person: ChartPerson, unitX: number, y: number): void => {
+	const place = (person: ChartPerson, unitX: number, depth: number): void => {
 		const width = widths.get(person.personId) ?? 1;
 		nodes.push({
 			id: person.id,
 			type: "person",
 			position: {
 				x: (unitX + width / 2 - 0.5) * CHART.laneWidth,
-				y,
+				y: depth * CHART.levelGap,
 			},
 			data: { person, onOpen },
 		});
-
-		const { stacked, spread } = split(person);
 		let cursor = unitX;
-		for (const kid of spread) {
+		for (const kid of children.get(person.personId) ?? []) {
 			edges.push({
 				id: `${person.id}-${kid.id}`,
 				source: person.id,
 				target: kid.id,
 				type: "smoothstep",
 			});
-			place(kid, cursor, y + CHART.levelGap);
+			place(kid, cursor, depth + 1);
 			cursor += widths.get(kid.personId) ?? 1;
 		}
-		stacked.forEach((kid, index) => {
-			edges.push({
-				id: `${person.id}-${kid.id}`,
-				source: person.id,
-				target: kid.id,
-				type: "smoothstep",
-			});
-			nodes.push({
-				id: kid.id,
-				type: "person",
-				position: {
-					x: (cursor + 0.5 - 0.5) * CHART.laneWidth + 24,
-					y: y + CHART.levelGap + index * CHART.stackGap,
-				},
-				data: { person: kid, onOpen },
-			});
-		});
 	};
 
 	if (singleRoot && roots[0]) {
@@ -221,7 +188,7 @@ function buildTreeFlow(
 				target: root.id,
 				type: "smoothstep",
 			});
-			place(root, cursor, CHART.levelGap);
+			place(root, cursor, 1);
 			cursor += widths.get(root.personId) ?? 1;
 		}
 	}
