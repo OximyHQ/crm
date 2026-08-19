@@ -236,7 +236,7 @@ const COMPANY_SUFFIXES =
 export function normalizeCompanyName(value: string): string {
 	return value
 		.toLowerCase()
-		.replace(/\(.*?\)/g, " ")
+		.replace(/\([^()]*\)/g, " ")
 		.replace(/[^\p{L}\p{N} ]+/gu, " ")
 		.replace(COMPANY_SUFFIXES, " ")
 		.replace(/\s+/g, " ")
