@@ -121,7 +121,7 @@ describe("a total across currencies", () => {
 			name: `Domestic ${suffix}`,
 			companyId,
 			ownerId: userId,
-			product: "visibility",
+			products: ["visibility"],
 			amountCents: MILLION,
 			currency: "USD",
 		});
@@ -130,7 +130,7 @@ describe("a total across currencies", () => {
 			name: `Continental ${suffix}`,
 			companyId,
 			ownerId: userId,
-			product: "visibility",
+			products: ["visibility"],
 			amountCents: MILLION,
 			currency: "EUR",
 		});
@@ -157,7 +157,7 @@ describe("a total across currencies", () => {
 			name: `Alpine ${suffix}`,
 			companyId,
 			ownerId: userId,
-			product: "visibility",
+			products: ["visibility"],
 			amountCents: HALF_MILLION,
 			currency: "CHF",
 		});
@@ -252,6 +252,48 @@ describe("the deals list", () => {
 		const amounts = list.rows.map((row) => row.baseAmountCents);
 		expect(amounts).toEqual([...amounts].sort((a, b) => (b ?? 0) - (a ?? 0)));
 	});
+
+	it("filters bundled products and keeps legacy deals under Unspecified", async () => {
+		const bundled = await deals.create({
+			name: `Bundle ${suffix}`,
+			companyId,
+			ownerId: userId,
+			products: ["relay", "sidekick"],
+			amountCents: null,
+		});
+		const legacy = await db.deal.create({
+			data: { name: `Legacy ${suffix}`, companyId, ownerId: userId },
+			select: { id: true },
+		});
+		const input = {
+			q: "",
+			page: 1,
+			pageSize: 100,
+			sort: "createdAt",
+			dir: "desc" as const,
+			status: "all",
+			owner: "all",
+			stage: "all",
+			closing: "all",
+		};
+
+		const relay = await deals.list({ ...input, product: "relay" });
+		expect(relay.rows.map((row) => row.id)).toContain(bundled.id);
+		expect(relay.rows.every((row) => row.products.includes("relay"))).toBe(
+			true,
+		);
+		expect(relay.facetCounts.product.relay).toBeGreaterThanOrEqual(1);
+		expect(relay.facetCounts.product.sidekick).toBeGreaterThanOrEqual(1);
+
+		const unspecified = await deals.list({ ...input, product: "unspecified" });
+		expect(unspecified.rows.map((row) => row.id)).toContain(legacy.id);
+		expect(unspecified.rows.every((row) => row.products.length === 0)).toBe(
+			true,
+		);
+		expect(unspecified.facetCounts.product.unspecified).toBeGreaterThanOrEqual(
+			1,
+		);
+	});
 });
 
 describe("a converted figure knows which currency it is in", () => {
@@ -267,7 +309,7 @@ describe("a converted figure knows which currency it is in", () => {
 			name: `Stale ${suffix}`,
 			companyId,
 			ownerId: userId,
-			product: "visibility",
+			products: ["visibility"],
 			amountCents: MILLION,
 			currency: "USD",
 		});
@@ -389,7 +431,7 @@ describe("a converted figure knows which currency it is in", () => {
 			name: `Frozen ${suffix}`,
 			companyId,
 			ownerId: userId,
-			product: "visibility",
+			products: ["visibility"],
 			amountCents: MILLION,
 			currency: "EUR",
 		});
@@ -483,7 +525,7 @@ describe("the dashboard only values what it can convert", () => {
 			name: `Valued win ${suffix}`,
 			companyId,
 			ownerId: analystId,
-			product: "visibility",
+			products: ["visibility"],
 			amountCents: 10_000,
 			currency: "USD",
 			stage: DealStage.CLOSED_WON,
@@ -505,7 +547,7 @@ describe("the dashboard only values what it can convert", () => {
 			name: `Valued open ${suffix}`,
 			companyId,
 			ownerId: analystId,
-			product: "visibility",
+			products: ["visibility"],
 			amountCents: 10_000,
 			currency: "USD",
 		});

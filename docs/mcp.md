@@ -175,9 +175,9 @@ Administrative access provides these tools:
 
 `delete_custom_field` also requires delete access.
 
-`create_deal` requires `product`.
+`create_deal` requires at least one value in `products`.
 
-`update_deal` accepts `product` and prevents clearing its required custom field.
+`update_deal` accepts `products` and prevents clearing the complete selection.
 
 The MCP has no import tool. Connected systems create and update records through
 the normal tools. This path preserves CRM validation, events, and agent queues.

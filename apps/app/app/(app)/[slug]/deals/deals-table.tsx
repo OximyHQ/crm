@@ -53,6 +53,17 @@ const COLUMNS: DataTableColumn<DealRow>[] = [
 		cell: (row) => <DealStageMenu dealId={row.id} stage={row.stage} />,
 	},
 	{
+		id: "product",
+		header: "Products",
+		width: "w-[12%]",
+		cell: (row) =>
+			row.products.length > 0 ? (
+				row.products.map((product) => OXIMY_PRODUCT_LABELS[product]).join(", ")
+			) : (
+				<EmptyCellValue />
+			),
+	},
+	{
 		id: "amount",
 		header: "Amount",
 		sortable: true,

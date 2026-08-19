@@ -12,10 +12,12 @@ import {
 	SelectValue,
 } from "@crm/ui/components/select";
 import { Spinner } from "@crm/ui/components/spinner";
+import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
 import {
 	OXIMY_PRODUCT_LABELS,
 	OXIMY_PRODUCTS,
 	type OximyProduct,
+	oximyProduct,
 } from "@crm/validation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
@@ -261,7 +263,7 @@ export function QuickAddDeal({
 	const [name, setName] = useState("");
 	const [amount, setAmount] = useState("");
 	const [closeDate, setCloseDate] = useState("");
-	const [product, setProduct] = useState<OximyProduct | "">("");
+	const [products, setProducts] = useState<OximyProduct[]>([]);
 
 	const nameId = useId();
 	const amountId = useId();
@@ -286,8 +288,8 @@ export function QuickAddDeal({
 			toast.error("Could not work out who should own this deal.");
 			return;
 		}
-		if (!product) {
-			toast.error("Choose a product.");
+		if (products.length === 0) {
+			toast.error("Choose at least one product.");
 			return;
 		}
 
@@ -305,7 +307,7 @@ export function QuickAddDeal({
 			name,
 			companyId,
 			ownerId: owner,
-			product,
+			products,
 			amountCents,
 			expectedCloseDate: closeDate || null,
 		});
@@ -315,7 +317,7 @@ export function QuickAddDeal({
 		<QuickAddForm
 			submitLabel="Create deal"
 			pending={create.isPending}
-			ready={name.trim() !== "" && product !== ""}
+			ready={name.trim() !== "" && products.length > 0}
 			onCancel={onDone}
 			onSubmit={submit}
 		>
@@ -331,22 +333,22 @@ export function QuickAddDeal({
 				/>
 			</Field>
 			<Field>
-				<FieldLabel htmlFor="quick-add-deal-product">Product</FieldLabel>
-				<Select
-					value={product}
-					onValueChange={(value) => setProduct(value as OximyProduct)}
+				<FieldLabel>Products</FieldLabel>
+				<ToggleGroup
+					type="multiple"
+					variant="outline"
+					value={products}
+					onValueChange={(values) =>
+						setProducts(values.map((value) => oximyProduct.parse(value)))
+					}
+					aria-label="Products"
 				>
-					<SelectTrigger id="quick-add-deal-product">
-						<SelectValue placeholder="Choose a product" />
-					</SelectTrigger>
-					<SelectContent>
-						{OXIMY_PRODUCTS.map((value) => (
-							<SelectItem key={value} value={value}>
-								{OXIMY_PRODUCT_LABELS[value]}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
+					{OXIMY_PRODUCTS.map((value) => (
+						<ToggleGroupItem key={value} value={value}>
+							{OXIMY_PRODUCT_LABELS[value]}
+						</ToggleGroupItem>
+					))}
+				</ToggleGroup>
 			</Field>
 			<Field>
 				<FieldLabel htmlFor={amountId}>Amount</FieldLabel>

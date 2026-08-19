@@ -8,9 +8,18 @@ export const OXIMY_PRODUCT_LABELS = {
 	sidekick: "Sidekick",
 } as const;
 
-export const OXIMY_PRODUCT_FIELD_KEY = "oximy_product";
-
 export const oximyProduct = z.enum(OXIMY_PRODUCTS);
+
+export const oximyProducts = z
+	.array(oximyProduct)
+	.min(1, "Choose at least one product.")
+	.max(OXIMY_PRODUCTS.length)
+	.refine((products) => new Set(products).size === products.length, {
+		message: "Choose each product once.",
+	})
+	.transform((products) =>
+		OXIMY_PRODUCTS.filter((product) => products.includes(product)),
+	);
 
 export type OximyProduct = z.infer<typeof oximyProduct>;
 

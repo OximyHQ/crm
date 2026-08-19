@@ -12,13 +12,7 @@ import {
 	LOSING_DEAL_STAGES,
 	OPEN_DEAL_STAGES,
 } from "@crm/db/deal-stage";
-import type { RecordField } from "@crm/db/fields";
-import {
-	OXIMY_PRODUCT_FIELD_KEY,
-	OXIMY_PRODUCT_LABELS,
-	OXIMY_PRODUCTS,
-	type OximyProduct,
-} from "@crm/validation";
+import { OXIMY_PRODUCTS, type OximyProduct } from "@crm/validation";
 import {
 	BadRequestException,
 	Injectable,
@@ -133,6 +127,7 @@ export class DealsService {
 					select: {
 						id: true,
 						name: true,
+						products: true,
 						stage: true,
 						amount: true,
 						currency: true,
@@ -180,7 +175,6 @@ export class DealsService {
 						lastActivityAt: lastActivityAt?.toISOString() ?? null,
 						createdAt: createdAt.toISOString(),
 						fields,
-						product: productFromLabel(fields[OXIMY_PRODUCT_FIELD_KEY]),
 					};
 				},
 			),
@@ -203,6 +197,7 @@ export class DealsService {
 				id: true,
 				name: true,
 				description: true,
+				products: true,
 				stage: true,
 				stageChangedAt: true,
 				amount: true,
@@ -233,7 +228,6 @@ export class DealsService {
 		return {
 			...rest,
 			fields,
-			product: productFromFields(fields),
 			amountCents: toCents(amount),
 			baseAmountCents: toCents(baseAmount),
 			reportingCurrency: await this.conversion.reportingCurrency(),
@@ -267,6 +261,7 @@ export class DealsService {
 						name: input.name.trim(),
 						companyId: input.companyId,
 						ownerId: input.ownerId,
+						products: input.products,
 						stage,
 						stageChangedAt: now,
 						closedAt: closed ? now : null,
@@ -276,9 +271,6 @@ export class DealsService {
 						expectedCloseDate: parseDate(input.expectedCloseDate),
 					},
 					select: { id: true, name: true, companyId: true },
-				});
-				await this.fields.applyValues(tx, "DEAL", created.id, {
-					[OXIMY_PRODUCT_FIELD_KEY]: OXIMY_PRODUCT_LABELS[input.product],
 				});
 				await emit({
 					type: "deal.created",
@@ -299,7 +291,7 @@ export class DealsService {
 
 			this.logger.log({ message: "Deal created", dealId: deal.id, stage });
 
-			return { ...deal, product: input.product };
+			return { ...deal, products: input.products };
 		} catch (error) {
 			throw this.translateRelations(error);
 		}
@@ -328,6 +320,7 @@ export class DealsService {
 		if (input.expectedCloseDate !== undefined) {
 			data.expectedCloseDate = parseDate(input.expectedCloseDate);
 		}
+		if (input.products !== undefined) data.products = input.products;
 
 		if (input.amountCents !== undefined || input.currency !== undefined) {
 			const current = await this.db.deal.findUnique({
@@ -353,14 +346,7 @@ export class DealsService {
 
 		try {
 			return await this.db.$transaction(async (tx) => {
-				const fieldValues = {
-					...(input.fields ?? {}),
-					...(input.product
-						? {
-								[OXIMY_PRODUCT_FIELD_KEY]: OXIMY_PRODUCT_LABELS[input.product],
-							}
-						: {}),
-				};
+				const fieldValues = input.fields ?? {};
 				if (Object.keys(fieldValues).length > 0) {
 					await this.fields.applyValues(tx, "DEAL", id, fieldValues);
 				}
@@ -714,11 +700,9 @@ export class DealsService {
 				this.db.deal.count({ where: { ...where, ...closingFilter(window) } }),
 			),
 			...OXIMY_PRODUCTS.map((product) =>
-				this.db.deal.count({ where: { ...where, ...productFilter(product) } }),
+				this.db.deal.count({ where: { ...where, products: { has: product } } }),
 			),
-			this.db.deal.count({
-				where: { ...where, ...productFilter("unspecified") },
-			}),
+			this.db.deal.count({ where: { ...where, products: { isEmpty: true } } }),
 		]);
 		const closingCounts = counts.slice(0, CLOSING_WINDOWS.length);
 		const productCounts = counts.slice(CLOSING_WINDOWS.length);
@@ -806,30 +790,8 @@ function closingFilter(window: ClosingWindow): Prisma.DealWhereInput {
 function productFilter(
 	product: OximyProduct | "unspecified",
 ): Prisma.DealWhereInput {
-	if (product === "unspecified") {
-		return {
-			fieldValues: {
-				none: {
-					field: { key: OXIMY_PRODUCT_FIELD_KEY },
-					option: {
-						label: { in: Object.values(OXIMY_PRODUCT_LABELS) },
-						archivedAt: null,
-					},
-				},
-			},
-		};
-	}
-
 	return {
-		fieldValues: {
-			some: {
-				field: { key: OXIMY_PRODUCT_FIELD_KEY },
-				option: {
-					label: OXIMY_PRODUCT_LABELS[product],
-					archivedAt: null,
-				},
-			},
-		},
+		products: product === "unspecified" ? { isEmpty: true } : { has: product },
 	};
 }
 
@@ -840,21 +802,6 @@ function dealProductFilter(
 	if (!parsed)
 		throw new BadRequestException(`"${value}" is not a product filter.`);
 	return parsed;
-}
-
-function productFromLabel(value: unknown): OximyProduct | null {
-	if (typeof value !== "string") return null;
-	return (
-		OXIMY_PRODUCTS.find((product) => OXIMY_PRODUCT_LABELS[product] === value) ??
-		null
-	);
-}
-
-function productFromFields(fields: RecordField[]): OximyProduct | null {
-	const field = fields.find((entry) => entry.key === OXIMY_PRODUCT_FIELD_KEY);
-	if (!field || typeof field.value !== "string") return null;
-	const option = field.options.find((entry) => entry.id === field.value);
-	return productFromLabel(option?.label);
 }
 
 function roleOrNull(value: string | null): string | null {

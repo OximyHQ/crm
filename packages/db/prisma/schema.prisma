@@ -300,6 +300,12 @@ enum DealStage {
   CLOSED_LOST
 }
 
+enum OximyProduct {
+  visibility
+  relay
+  sidekick
+}
+
 enum ActivityType {
   NOTE
   CALL
@@ -1098,6 +1104,7 @@ model Deal {
   owner         User                @relation("DealOwner", fields: [ownerId], references: [id])
 
   stage             DealStage @default(DEMO_BOOKED)
+  products          OximyProduct[] @default([])
   stageChangedAt    DateTime  @default(now())
   amount            Decimal?  @db.Decimal(14, 2)
   currency          String    @default("USD")
@@ -1121,6 +1128,7 @@ model Deal {
   @@index([companyId])
   @@index([ownerId])
   @@index([stage])
+  @@index([products], type: Gin)
   @@index([expectedCloseDate])
   @@index([lastActivityAt])
   @@index([baseAmount])

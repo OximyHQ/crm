@@ -17,10 +17,10 @@ export type {
 } from "./agents";
 export type { OximyProduct } from "./oximy";
 export {
-	OXIMY_PRODUCT_FIELD_KEY,
 	OXIMY_PRODUCT_LABELS,
 	OXIMY_PRODUCTS,
 	oximyProduct,
+	oximyProducts,
 } from "./oximy";
 export type { QuoWebhookEvent } from "./quo";
 export type { AuthTest, Installation, JoinPayload, Reply } from "./slack";

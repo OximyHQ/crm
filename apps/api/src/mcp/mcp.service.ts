@@ -555,7 +555,7 @@ export class McpService {
 			"create_deal",
 			{
 				description:
-					"Create one CRM deal. Search CRM first. Use list_users for its owner. Product is required.",
+					"Create one CRM deal. Search CRM first. Use list_users for its owner. At least one product is required.",
 				inputSchema: dealCreateInput,
 				annotations: CREATE_ANNOTATIONS,
 			},

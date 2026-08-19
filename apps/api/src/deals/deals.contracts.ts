@@ -1,5 +1,5 @@
 import { DealStage } from "@crm/db";
-import { oximyProduct } from "@crm/validation";
+import { oximyProducts } from "@crm/validation";
 import { z } from "zod";
 import { bulkIdsInput } from "../crm/bulk";
 import { currencyCode } from "../currency/currency.contracts";
@@ -59,7 +59,7 @@ export const dealCreateInput = z.object({
 	amountCents,
 	currency: currencyCode.optional(),
 	expectedCloseDate: z.string().nullable().optional(),
-	product: oximyProduct,
+	products: oximyProducts,
 });
 
 export type DealCreateInput = z.infer<typeof dealCreateInput>;
@@ -72,7 +72,7 @@ export const dealUpdateInput = z.object({
 	amountCents,
 	currency: currencyCode.optional(),
 	expectedCloseDate: z.string().nullable().optional(),
-	product: oximyProduct.optional(),
+	products: oximyProducts.optional(),
 	fields: recordFieldValues.optional(),
 });
 
