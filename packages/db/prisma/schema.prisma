@@ -364,6 +364,12 @@ enum RecordSource {
   PROSPECTING
 }
 
+enum ProspectStatus {
+  SUGGESTED
+  ADDED
+  DISMISSED
+}
+
 enum AgentConversationKind {
   RECORD
   BUILDER
@@ -487,6 +493,7 @@ model Company {
   emailThreads   EmailThread[]
   calendarEvents CalendarEvent[]
   fieldValues    FieldValue[]
+  prospects      CompanyProspect[]
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
 
@@ -504,6 +511,42 @@ model CompanyEnrichment {
   fetchedAt DateTime @default(now())
 
   @@map("companyEnrichment")
+}
+
+model CompanyProspect {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  personId String
+
+  fullName    String
+  title       String
+  headline    String?
+  city        String?
+  state       String?
+  country     String?
+  linkedinUrl String?
+
+  connectionsCount Int @default(0)
+  followerCount    Int @default(0)
+
+  tier          Int
+  orgFunction   String
+  seniorityRank Int
+
+  profileAsOf DateTime?
+
+  status    ProspectStatus @default(SUGGESTED)
+  contactId String?        @unique
+  contact   Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, personId])
+  @@index([companyId, status])
+  @@map("companyProspect")
 }
 
 model Contact {
@@ -548,6 +591,7 @@ model Contact {
   submissions               FormSubmission[]           @relation("SubmissionContact")
   phones                    ContactPhone[]
   communicationParticipants CommunicationParticipant[]
+  prospect                  CompanyProspect?
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
 
