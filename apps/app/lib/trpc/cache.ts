@@ -21,6 +21,7 @@ export type CrmCache = {
 	deal(id?: string, options?: Options): Promise<void>;
 	fields(entity?: RecordKind, options?: Options): Promise<void>;
 	fieldCoverage(id?: string, options?: Options): Promise<void>;
+	prospects(companyId?: string, options?: Options): Promise<void>;
 	removed(record: RemovedRecord): Promise<void>;
 	removedMany(records: RemovedRecords): Promise<void>;
 	conversationRemoved(id: string): Promise<void>;
@@ -152,6 +153,22 @@ export function useCrmCache(): CrmCache {
 					trpc.contacts.byId.queryKey(),
 					trpc.deals.byId.queryKey(),
 					trpc.dashboard.summary.queryKey(),
+					trpc.prospects.list.queryKey(),
+				],
+				options,
+			),
+
+		prospects: (companyId, options) =>
+			run(
+				[
+					companyId
+						? trpc.prospects.list.queryKey({ companyId })
+						: trpc.prospects.list.queryKey(),
+				],
+				[
+					...listKeys(),
+					trpc.companies.byId.queryKey(),
+					trpc.contacts.byId.queryKey(),
 				],
 				options,
 			),

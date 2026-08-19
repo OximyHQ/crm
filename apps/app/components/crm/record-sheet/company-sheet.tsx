@@ -63,6 +63,7 @@ import { hasCompanyLinks } from "@/lib/social-links";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
+import { CompanyPeople } from "./company-people";
 import { QuickAddContact, QuickAddDeal } from "./quick-add";
 import { RecordActions } from "./record-actions";
 import {
@@ -157,6 +158,12 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 		? isEnriching(company.enrichmentStatus, company.queued)
 		: false;
 
+	const prospects = useQuery(trpc.prospects.list.queryOptions({ companyId }));
+	const peopleCount = prospects.data
+		? prospects.data.filter((prospect) => prospect.status !== "DISMISSED")
+				.length
+		: null;
+
 	const location = company
 		? [company.city, company.stateCode, company.country]
 				.filter(Boolean)
@@ -192,6 +199,18 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 							adding={adding === "contact"}
 							onAdd={() => setAdding("contact")}
 							onDone={() => setAdding(null)}
+						/>
+					),
+				},
+				{
+					value: "people",
+					label: "People",
+					count: peopleCount,
+					content: (
+						<CompanyPeople
+							companyId={company.id}
+							companyName={company.name}
+							running={enrichmentRunning}
 						/>
 					),
 				},
