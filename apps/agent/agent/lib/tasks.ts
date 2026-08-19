@@ -84,6 +84,15 @@ export async function retireExhausted(): Promise<TaskSubject[]> {
 	`;
 }
 
+export async function notePhase(taskId: string, phase: string): Promise<void> {
+	await db.agentTask
+		.updateMany({
+			where: { id: taskId, finishedAt: null },
+			data: { outcome: phase.slice(0, DISPATCH.task.outcomeMaxLength) },
+		})
+		.catch(() => {});
+}
+
 export async function completeTask(
 	taskId: string,
 	outcome: string,
@@ -93,7 +102,7 @@ export async function completeTask(
 		where: { id: taskId, finishedAt: null },
 		data: {
 			finishedAt: new Date(),
-			outcome: outcome.slice(0, 500),
+			outcome: outcome.slice(0, DISPATCH.task.outcomeMaxLength),
 			...(sessionId ? { sessionId } : {}),
 		},
 	});

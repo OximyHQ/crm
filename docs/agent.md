@@ -72,11 +72,14 @@ Automatic `company-profile` tasks never add people. Manual company requests use
 prospecting skill.
 
 `gtm-people` fills the People tab: resolve the company in the LinkedIn
-ClickHouse snapshot (`gtm_companies`, exact name match only), pull its roster
+ClickHouse snapshot (`gtm_companies`; a normalized exact name wins, otherwise
+the single largest closest-name match, stated in the outcome), pull its roster
 through a generic seniority filter (`lib/gtm-matcher.ts` — structural title
-markers, not a role taxonomy), then let one OpenRouter call decide who is real
-leadership, their function, and who reports to whom (`lib/gtm-organize.ts`),
-with a web check per person for leavers (`lib/gtm-verify.ts`). No
+markers, not a role taxonomy), then let OpenRouter calls in chunks of 150
+decide who is real leadership, their function, and who reports to whom
+(`lib/gtm-organize.ts` — earlier chunks' leaders are passed forward as
+reportsTo targets, and one failed chunk fails the whole analysis), with a web
+check per person for leavers (`lib/gtm-verify.ts`). No
 `OPENROUTER_API_KEY` means the keyword fallback and no hierarchy. Suggestions
 never become contacts on their own — a rep promotes them, and the promote path
 lives in the API (`PeopleService`), because filing a stored suggestion decides

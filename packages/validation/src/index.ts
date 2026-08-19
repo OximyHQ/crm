@@ -18,6 +18,8 @@ export type {
 export type { GtmOrgFunction, OximyProduct } from "./oximy";
 export {
 	GTM_FUNCTIONS,
+	normalizeCompanyName,
+	normalizePersonName,
 	OXIMY_PRODUCT_LABELS,
 	OXIMY_PRODUCTS,
 	oximyProduct,

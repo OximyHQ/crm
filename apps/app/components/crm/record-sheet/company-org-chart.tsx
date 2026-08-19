@@ -244,8 +244,11 @@ export function CompanyOrgChart({
 	const openRef = useRef(onOpen);
 	openRef.current = onOpen;
 
+	const personIds = new Set(people.map((person) => person.personId));
 	const hasHierarchy = people.some(
-		(person) => person.reportsToPersonId !== null,
+		(person) =>
+			person.reportsToPersonId !== null &&
+			personIds.has(person.reportsToPersonId),
 	);
 
 	const built = useMemo(() => {
@@ -287,6 +290,7 @@ export function CompanyOrgChart({
 				maxZoom={1.5}
 				nodesConnectable={false}
 				deleteKeyCode={null}
+				proOptions={{ hideAttribution: true }}
 				panOnScroll
 				zoomOnScroll={false}
 				zoomOnPinch

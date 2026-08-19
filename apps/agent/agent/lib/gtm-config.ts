@@ -75,9 +75,11 @@ export const GTM_DEMOTE_KEYWORDS: readonly string[] = [
 
 export const GTM_FALLBACK_MAX_RANK = 4;
 
+export const GTM_LEADER_MAX_RANK = 4;
+
 export const GTM_PIPELINE = {
-	resolve: { candidateLimit: 25, entityLimit: 10 },
-	roster: { coarseLimit: 3000, maxRank: 6 },
+	resolve: { candidateLimit: 100, entityLimit: 10 },
+	roster: { coarseLimit: 3000, maxRank: 6, maxExecutionSeconds: 60 },
 	keep: { limit: 300 },
 	profile: { experienceLimit: 15 },
 	save: { updateChunk: 25 },
@@ -89,7 +91,7 @@ export const GTM_PIPELINE = {
 		baseUrl: "https://openrouter.ai/api/v1",
 	},
 	hierarchy: {
-		cap: 150,
+		chunk: 150,
 		callTimeoutMs: 90_000,
 		model: "google/gemini-3-flash-preview",
 		baseUrl: "https://openrouter.ai/api/v1",

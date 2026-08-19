@@ -1,4 +1,5 @@
 import type { CompanyPersonStatus, Db } from "@crm/db";
+import { normalizePersonName } from "@crm/validation";
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { InjectDatabase } from "../database/database.constants";
@@ -218,13 +219,15 @@ export class PeopleService {
 		return { id, status: "SUGGESTED" };
 	}
 
-	async status(
-		companyId: string,
-	): Promise<{ running: boolean; lastOutcome: string | null }> {
+	async status(companyId: string): Promise<{
+		running: boolean;
+		phase: string | null;
+		lastOutcome: string | null;
+	}> {
 		const [open, finished] = await Promise.all([
 			this.db.agentTask.findFirst({
 				where: { kind: "gtm-people", companyId, finishedAt: null },
-				select: { id: true },
+				select: { outcome: true, startedAt: true },
 			}),
 			this.db.agentTask.findFirst({
 				where: { kind: "gtm-people", companyId, finishedAt: { not: null } },
@@ -233,7 +236,11 @@ export class PeopleService {
 			}),
 		]);
 
-		return { running: open !== null, lastOutcome: finished?.outcome ?? null };
+		return {
+			running: open !== null,
+			phase: open?.startedAt ? (open.outcome ?? null) : null,
+			lastOutcome: finished?.outcome ?? null,
+		};
 	}
 
 	async refresh(companyId: string): Promise<{ queued: boolean }> {
@@ -277,12 +284,12 @@ export class PeopleService {
 			if (byUrl) return byUrl.id;
 		}
 
-		const wanted = normalizeName(fullName);
+		const wanted = normalizePersonName(fullName);
 		if (!wanted) return null;
 		return (
 			contacts.find(
 				(contact) =>
-					normalizeName(
+					normalizePersonName(
 						[contact.firstName, contact.lastName].filter(Boolean).join(" "),
 					) === wanted,
 			)?.id ?? null
@@ -295,14 +302,6 @@ function effectiveStatus(row: {
 	contactId: string | null;
 }): CompanyPersonStatus {
 	return row.status === "ADDED" && !row.contactId ? "SUGGESTED" : row.status;
-}
-
-function normalizeName(value: string): string {
-	return value
-		.toLowerCase()
-		.replace(/[^a-z ]+/g, " ")
-		.replace(/\s+/g, " ")
-		.trim();
 }
 
 function splitName(fullName: string): {

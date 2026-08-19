@@ -1,11 +1,17 @@
 import { db, type Prisma } from "@crm/db";
-import { GTM_PIPELINE, GTM_UNMATCHED_RANK } from "./gtm-config";
+import {
+	GTM_LEADER_MAX_RANK,
+	GTM_PIPELINE,
+	GTM_UNMATCHED_RANK,
+} from "./gtm-config";
 import { buildCoarseRankSql, matchTitle } from "./gtm-matcher";
 import { analyzeOrg, gtmOrganizeConfigured } from "./gtm-organize";
 import {
+	dedupeByName,
 	departedPerProfile,
 	type GtmPeopleResult,
 	nameCandidates,
+	normalizeEntityName,
 	type PersonProfile,
 	type ProfileExperience,
 	parseCrawlDate,
@@ -63,10 +69,16 @@ const NONE: Omit<GtmPeopleResult, "reason"> = {
 	truncated: false,
 };
 
+type PhaseReporter = (phase: string) => Promise<void>;
+
+const SILENT: PhaseReporter = async () => {};
+
 export async function runGtmPeople({
 	companyId,
+	onPhase = SILENT,
 }: {
 	companyId: string;
+	onPhase?: PhaseReporter;
 }): Promise<GtmPeopleResult> {
 	const company = await db.company.findUnique({
 		where: { id: companyId },
@@ -88,14 +100,21 @@ export async function runGtmPeople({
 		return { ...NONE, reason: "The company has no usable name to resolve." };
 	}
 
-	const entities = await resolveEntities(candidates);
+	await onPhase("Resolving the company in the LinkedIn index");
+	const resolution = await resolveEntities(candidates);
+	const entities = resolution.entities;
 	if (entities.length === 0) {
 		return {
 			...NONE,
-			reason: `No LinkedIn company exactly matched "${company.name}". Fix the company name or domain and refresh.`,
+			reason: `No LinkedIn company matched "${company.name}". Fix the company name or domain and refresh.`,
 		};
 	}
 
+	await onPhase(
+		`Resolved ${entities.length} LinkedIn ${
+			entities.length === 1 ? "entity" : "entities"
+		}, scanning the roster`,
+	);
 	const roster = await fetchRoster(entities.map((entity) => entity.id));
 	const coarseTruncated = roster.length >= GTM_PIPELINE.roster.coarseLimit;
 
@@ -123,28 +142,45 @@ export async function runGtmPeople({
 	const capped = candidateRows.slice(0, GTM_PIPELINE.keep.limit);
 	const truncated = coarseTruncated || candidateRows.length > capped.length;
 
+	await onPhase(
+		`Found ${capped.length} leadership candidates, reading profiles`,
+	);
 	const profiles = await hydrateProfiles(capped.map((row) => row.personId));
 
 	if (capped.length > 0 && profiles.size === 0) {
 		return {
 			...NONE,
 			entities: entities.length,
+			resolvedFuzzily: resolution.fuzzy,
 			reason: `Matched ${capped.length} titles, but none of the profiles could be read. Nothing was changed.`,
 		};
 	}
 
 	const entityNames = entities.map((entity) => entity.name);
 	const entityIds = entities.map((entity) => entity.id);
-	let departed = 0;
-	let present = capped.flatMap((row) => {
+	const hydrated = capped.flatMap((row) => {
 		const profile = profiles.get(row.personId);
 		if (!profile?.full_name) return [];
 		const experiences = toExperiences(profile.experience);
-		if (departedPerProfile(experiences, entityNames, entityIds)) {
+		return [
+			{
+				...row,
+				profile,
+				experiences,
+				fullName: profile.full_name,
+				asOf: parseCrawlDate(profile.updated_at),
+				left: departedPerProfile(experiences, entityNames, entityIds),
+			},
+		];
+	});
+	const unique = dedupeByName(hydrated).kept;
+	let departed = 0;
+	let present = unique.filter((row) => {
+		if (row.left) {
 			departed += 1;
-			return [];
+			return false;
 		}
-		return [{ ...row, profile, experiences }];
+		return true;
 	});
 
 	const reportsTo = new Map<string, string | null>();
@@ -154,11 +190,14 @@ export async function runGtmPeople({
 	>();
 
 	if (organizing && present.length > 1) {
+		await onPhase(
+			`Judging ${present.length} candidates and inferring the hierarchy with AI`,
+		);
 		const analysis = await analyzeOrg(
 			company.name,
 			present.map((row) => ({
 				personId: row.personId,
-				fullName: row.profile.full_name,
+				fullName: row.fullName,
 				title: row.title,
 			})),
 		);
@@ -169,7 +208,7 @@ export async function runGtmPeople({
 				if (!entry.keep) return false;
 				reportsTo.set(row.personId, entry.reportsTo);
 				classified.set(row.personId, {
-					tier: entry.seniorityRank <= 4 ? 1 : 2,
+					tier: entry.seniorityRank <= GTM_LEADER_MAX_RANK ? 1 : 2,
 					orgFunction: entry.orgFunction,
 					seniorityRank: entry.seniorityRank,
 				});
@@ -190,7 +229,7 @@ export async function runGtmPeople({
 	const people = present.flatMap((row) => {
 		const shape = classified.get(row.personId) ?? matchTitle(row.title);
 		if (!shape) return [];
-		const asOf = parseCrawlDate(row.profile.updated_at);
+		const asOf = row.asOf;
 		const stored: PersonProfile = {
 			headline: row.profile.headline || null,
 			asOf: asOf?.toISOString() ?? null,
@@ -224,6 +263,9 @@ export async function runGtmPeople({
 	let verifiedOut = 0;
 	let toSave = people;
 	if (gtmVerifyConfigured() && people.length > 0) {
+		await onPhase(
+			`Checking on the web that ${Math.min(people.length, GTM_PIPELINE.verify.cap)} people are still there`,
+		);
 		const outcomes = await verifyStillAtCompany(
 			company.name,
 			people.map((person) => ({
@@ -238,6 +280,7 @@ export async function runGtmPeople({
 		verifiedOut = people.length - toSave.length;
 	}
 
+	await onPhase("Saving the people");
 	const saved = await savePeople(companyId, toSave);
 
 	return {
@@ -248,6 +291,7 @@ export async function runGtmPeople({
 		truncated,
 		departed,
 		verifiedOut,
+		resolvedFuzzily: resolution.fuzzy,
 	};
 }
 
@@ -268,15 +312,23 @@ function toExperiences(rows: ExperienceRow[] | undefined): ProfileExperience[] {
 		}));
 }
 
+type EntityResolution = {
+	entities: { id: string; name: string }[];
+	fuzzy: boolean;
+};
+
 async function resolveEntities(
 	candidates: string[],
-): Promise<{ id: string; name: string }[]> {
+): Promise<EntityResolution> {
 	const params: Record<string, unknown> = {
 		re_limit: GTM_PIPELINE.resolve.candidateLimit,
 	};
-	const likes = candidates.map((candidate, index) => {
+	const probes = [
+		...new Set([...candidates, ...candidates.map(normalizeEntityName)]),
+	].filter(Boolean);
+	const likes = probes.map((probe, index) => {
 		const key = `re_name_${index}`;
-		params[key] = `%${escapeLike(candidate)}%`;
+		params[key] = `%${escapeLike(probe)}%`;
 		return `name_lower LIKE {${key}:String}`;
 	});
 
@@ -284,16 +336,23 @@ async function resolveEntities(
 		`SELECT company_id, name, name_lower, employee_count
 		 FROM gtm_companies FINAL
 		 WHERE ${likes.join(" OR ")}
-		 ORDER BY employee_count DESC
+		 ORDER BY employee_count DESC, name ASC
 		 LIMIT {re_limit:UInt32}`,
 		params,
 	);
 
-	const wanted = new Set(candidates);
-	return rows
-		.filter((row) => wanted.has(row.name_lower.trim()))
-		.slice(0, GTM_PIPELINE.resolve.entityLimit)
-		.map((row) => ({ id: String(row.company_id), name: row.name }));
+	const wanted = new Set(candidates.map(normalizeEntityName).filter(Boolean));
+	const exact = rows.filter((row) => {
+		const normalized = normalizeEntityName(row.name_lower);
+		return normalized !== "" && wanted.has(normalized);
+	});
+	const picked = exact.length > 0 ? exact : rows.slice(0, 1);
+	return {
+		entities: picked
+			.slice(0, GTM_PIPELINE.resolve.entityLimit)
+			.map((row) => ({ id: String(row.company_id), name: row.name })),
+		fuzzy: exact.length === 0 && rows.length > 0,
+	};
 }
 
 function escapeLike(value: string): string {
@@ -316,6 +375,10 @@ async function fetchRoster(entityIds: string[]): Promise<RosterRow[]> {
 			ro_ids: entityIds.map(Number),
 			ro_limit: GTM_PIPELINE.roster.coarseLimit,
 			ro_rank: GTM_PIPELINE.roster.maxRank,
+		},
+		{
+			maxExecutionSeconds: GTM_PIPELINE.roster.maxExecutionSeconds,
+			retryTimeouts: false,
 		},
 	);
 }
