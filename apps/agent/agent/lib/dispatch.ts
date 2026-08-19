@@ -30,6 +30,10 @@ export const VISIBLE_LEASE_MS = DISPATCH.visible.leaseMs;
 export const RESEARCH_BATCH = DISPATCH.research.batch;
 export const RESEARCH_LEASE_MS = DISPATCH.research.leaseMs;
 
+const GTM_PEOPLE_KIND = "gtm-people";
+
+const VISIBLE_KINDS = DIRECT_KINDS.filter((kind) => kind !== GTM_PEOPLE_KIND);
+
 export async function retireAbandoned(): Promise<void> {
 	let abandoned: TaskSubject[] = [];
 
@@ -40,6 +44,7 @@ export async function retireAbandoned(): Promise<void> {
 	}
 
 	for (const task of abandoned) {
+		if (task.kind === GTM_PEOPLE_KIND) continue;
 		await settle(
 			task,
 			EnrichmentStatus.FAILED,
@@ -56,7 +61,7 @@ export async function runVisibleLane(signal?: AbortSignal): Promise<number> {
 
 		const tasks = await claimDue(
 			Math.min(VISIBLE_CONCURRENCY, VISIBLE_BATCH - handled),
-			{ only: DIRECT_KINDS },
+			{ only: VISIBLE_KINDS },
 			VISIBLE_LEASE_MS,
 		);
 
@@ -67,6 +72,26 @@ export async function runVisibleLane(signal?: AbortSignal): Promise<number> {
 	}
 
 	return handled;
+}
+
+export async function runGtmLane(signal?: AbortSignal): Promise<number> {
+	if (signal?.aborted) return 0;
+
+	const tasks = await claimDue(
+		DISPATCH.gtmPeople.batch,
+		{ only: [GTM_PEOPLE_KIND] },
+		DISPATCH.gtmPeople.leaseMs,
+	);
+	if (tasks.length === 0) return 0;
+
+	await runLimited(
+		DISPATCH.gtmPeople.concurrency,
+		tasks,
+		(task) => runDirect(task, handleDirect, DISPATCH.gtmPeople.itemTimeoutMs),
+		signal,
+	);
+
+	return tasks.length;
 }
 
 type DirectOutcome = { finished: true } | { finished: false; reason: string };
@@ -175,9 +200,13 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 		return;
 	}
 
-	if (task.kind === "gtm-people" && task.companyId) {
-		const result = await runGtmPeople({ companyId: task.companyId });
-		await completeTask(task.id, gtmPeopleOutcome(result));
+	if (task.kind === GTM_PEOPLE_KIND && task.companyId) {
+		try {
+			const result = await runGtmPeople({ companyId: task.companyId });
+			await completeTask(task.id, gtmPeopleOutcome(result));
+		} catch (error) {
+			await completeTask(task.id, `The people pull failed: ${reasonOf(error)}`);
+		}
 		return;
 	}
 
@@ -378,6 +407,7 @@ export const drainAll = collapsing(
 			await retireAbandoned();
 			await Promise.all([
 				runVisibleLane(signal),
+				runGtmLane(signal),
 				runResearchLane(start, signal),
 			]);
 		})();

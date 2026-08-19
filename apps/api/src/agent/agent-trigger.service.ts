@@ -37,6 +37,7 @@ export class AgentTriggerService {
 	async companyCreated(
 		companyId: string,
 		reason = "New company",
+		options: { people?: boolean } = {},
 	): Promise<void> {
 		await this.enqueue({
 			companyId,
@@ -54,7 +55,9 @@ export class AgentTriggerService {
 			budget: 4,
 		});
 
-		await this.gtmPeopleRequested(companyId, reason);
+		if (options.people) {
+			await this.gtmPeopleRequested(companyId, reason);
+		}
 	}
 
 	async companyRequested(companyId: string, reason: string): Promise<void> {

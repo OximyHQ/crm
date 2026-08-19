@@ -26,8 +26,8 @@ export class ProspectsRouter {
 	}
 
 	@Query({ input: prospectCompanyInput })
-	async pending(@Input("companyId") companyId: string) {
-		return this.prospects.pending(companyId);
+	async status(@Input("companyId") companyId: string) {
+		return this.prospects.status(companyId);
 	}
 
 	@Mutation({ input: prospectIdInput })

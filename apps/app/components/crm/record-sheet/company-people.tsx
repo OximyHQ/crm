@@ -30,8 +30,9 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@crm/ui/components/tooltip";
+import { GTM_FUNCTIONS } from "@crm/validation";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DetailSheetEmpty } from "@/components/detail-sheet";
 import { LocalDay } from "@/components/local-date-time";
@@ -47,14 +48,7 @@ export type Prospect = RouterOutputs["prospects"]["list"][number];
 
 const ALL = "all";
 
-const FUNCTION_OPTIONS = [
-	"Executive",
-	"Engineering",
-	"IT",
-	"Security",
-	"Data & AI",
-	"Other",
-];
+const FUNCTION_OPTIONS = GTM_FUNCTIONS;
 
 const PEOPLE_COLUMNS = [
 	{ id: "name", header: "Name", width: "w-[26%]", className: "pl-5" },
@@ -82,17 +76,26 @@ export function CompanyPeople({
 	const trpc = useTRPC();
 	const cache = useCrmCache();
 
-	const pendingQuery = useQuery({
-		...trpc.prospects.pending.queryOptions({ companyId }),
+	const statusQuery = useQuery({
+		...trpc.prospects.status.queryOptions({ companyId }),
 		refetchInterval: (current) =>
-			current.state.data === true ? ENRICHMENT_POLL_MS : false,
+			current.state.data?.running ? ENRICHMENT_POLL_MS : false,
 	});
-	const running = pendingQuery.data === true;
+	const running = statusQuery.data?.running === true;
+	const lastOutcome = statusQuery.data?.lastOutcome ?? null;
 
 	const query = useQuery({
 		...trpc.prospects.list.queryOptions({ companyId }),
 		refetchInterval: running ? ENRICHMENT_POLL_MS : false,
 	});
+
+	const wasRunning = useRef(false);
+	useEffect(() => {
+		if (wasRunning.current && !running) {
+			void cache.prospects(companyId);
+		}
+		wasRunning.current = running;
+	}, [running, companyId, cache]);
 
 	const [view, setView] = useState<"table" | "chart">("table");
 	const [q, setQ] = useState("");
@@ -202,7 +205,10 @@ export function CompanyPeople({
 					<DetailSheetEmpty
 						icon={UserMultiple}
 						title="No people pulled yet"
-						description={`Leadership and departmental heads at ${companyName}, from a LinkedIn snapshot. Suggestions stay here until you add them as contacts.`}
+						description={
+							lastOutcome ??
+							`Leadership and departmental heads at ${companyName}, from a LinkedIn snapshot. Suggestions stay here until you add them as contacts.`
+						}
 						action={
 							<span className="flex items-center gap-2">
 								<Button
@@ -293,22 +299,29 @@ export function CompanyPeople({
 					<Icon icon={Add} data-icon="inline-start" />
 					Add manually
 				</Button>
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => refresh.mutate({ companyId })}
-							disabled={refresh.isPending || running}
-						>
-							<Icon icon={Renew} data-icon="inline-start" />
-							Refresh
-						</Button>
-					</TooltipTrigger>
-					<TooltipContent>
-						Re-pull this company's people from the LinkedIn snapshot
-					</TooltipContent>
-				</Tooltip>
+				{running ? (
+					<span className="flex items-center gap-1.5 text-muted-foreground text-sm">
+						<Spinner />
+						Updating
+					</span>
+				) : (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => refresh.mutate({ companyId })}
+								disabled={refresh.isPending}
+							>
+								<Icon icon={Renew} data-icon="inline-start" />
+								Refresh
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							Re-pull this company's people from the LinkedIn snapshot
+						</TooltipContent>
+					</Tooltip>
+				)}
 				<ToggleGroup
 					type="single"
 					value={view}

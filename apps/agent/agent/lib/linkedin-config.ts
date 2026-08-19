@@ -1,7 +1,7 @@
 export const LINKEDIN_DISCOVERY = {
 	query: {
-		timeoutMs: 20_000,
-		maxExecutionSeconds: 15,
+		timeoutMs: 35_000,
+		maxExecutionSeconds: 30,
 		maxThreads: 4,
 		cacheSeconds: 300,
 		retries: 1,

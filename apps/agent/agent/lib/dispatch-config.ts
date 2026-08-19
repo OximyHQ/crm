@@ -7,6 +7,13 @@ export const DISPATCH = {
 		leaseMs: 6 * MINUTE_MS,
 	},
 
+	gtmPeople: {
+		batch: 4,
+		concurrency: 2,
+		leaseMs: 15 * MINUTE_MS,
+		itemTimeoutMs: 8 * MINUTE_MS,
+	},
+
 	research: {
 		batch: 12,
 		leaseMs: 30 * MINUTE_MS,

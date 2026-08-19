@@ -1,20 +1,16 @@
 import {
 	GTM_DEMOTE_KEYWORDS,
 	GTM_EXCLUDE_KEYWORDS,
-	GTM_FUNCTION,
-	GTM_FUNCTION_RULES,
-	GTM_ICP_TIERS,
-	GTM_SENIORITY_RULES,
-	GTM_UNMATCHED_TIER,
-	GTM_UNRANKED_SENIORITY,
-	type GtmFunction,
+	GTM_FALLBACK_MAX_RANK,
+	GTM_SENIORITY_BANDS,
+	GTM_UNMATCHED_RANK,
 	type GtmKeyword,
 	type GtmKeywordRule,
 } from "./gtm-config";
 
 export type TitleMatch = {
 	tier: number;
-	orgFunction: GtmFunction;
+	orgFunction: string;
 	seniorityRank: number;
 };
 
@@ -47,25 +43,12 @@ function matches(lowered: string, compiled: CompiledKeyword): boolean {
 	return !compiled.unless.some((blocker) => lowered.includes(blocker));
 }
 
-const TIER_KEYWORDS: readonly (CompiledKeyword & { tier: number })[] =
-	GTM_ICP_TIERS.flatMap((row) =>
-		row.keywords.map((keyword) => ({ ...compile(keyword), tier: row.tier })),
-	).sort((a, b) => b.keyword.length - a.keyword.length);
-
-const FUNCTION_RULES: readonly {
-	id: GtmFunction;
-	keywords: readonly CompiledKeyword[];
-}[] = GTM_FUNCTION_RULES.map((rule) => ({
-	id: rule.id,
-	keywords: rule.keywords.map(compile),
-}));
-
-const SENIORITY_RULES: readonly {
+const BANDS: readonly {
 	rank: number;
 	keywords: readonly CompiledKeyword[];
-}[] = GTM_SENIORITY_RULES.map((rule) => ({
-	rank: rule.rank,
-	keywords: rule.keywords.map(compile),
+}[] = GTM_SENIORITY_BANDS.map((band) => ({
+	rank: band.rank,
+	keywords: band.keywords.map(compile),
 }));
 
 const EXCLUDE_KEYWORDS: readonly CompiledKeyword[] =
@@ -74,39 +57,14 @@ const EXCLUDE_KEYWORDS: readonly CompiledKeyword[] =
 const DEMOTE_KEYWORDS: readonly CompiledKeyword[] =
 	GTM_DEMOTE_KEYWORDS.map(compile);
 
-function tierMatchOf(
-	lowered: string,
-): { tier: number; keyword: string } | null {
-	for (const entry of TIER_KEYWORDS) {
-		if (matches(lowered, entry)) {
-			return { tier: entry.tier, keyword: entry.keyword };
-		}
-	}
-	return null;
-}
-
-export function tierOf(title: string): number {
-	return tierMatchOf(title.toLowerCase())?.tier ?? GTM_UNMATCHED_TIER;
-}
-
-export function orgFunctionOf(title: string): GtmFunction {
-	const lowered = title.toLowerCase();
-	for (const rule of FUNCTION_RULES) {
-		if (rule.keywords.some((keyword) => matches(lowered, keyword))) {
-			return rule.id;
-		}
-	}
-	return GTM_FUNCTION.OTHER;
-}
-
 export function seniorityRankOf(title: string): number {
 	const lowered = title.toLowerCase();
-	for (const rule of SENIORITY_RULES) {
-		if (rule.keywords.some((keyword) => matches(lowered, keyword))) {
-			return rule.rank;
+	for (const band of BANDS) {
+		if (band.keywords.some((keyword) => matches(lowered, keyword))) {
+			return band.rank;
 		}
 	}
-	return GTM_UNRANKED_SENIORITY;
+	return GTM_UNMATCHED_RANK;
 }
 
 export function matchTitle(title: string): TitleMatch | null {
@@ -114,19 +72,17 @@ export function matchTitle(title: string): TitleMatch | null {
 	if (EXCLUDE_KEYWORDS.some((keyword) => matches(lowered, keyword))) {
 		return null;
 	}
-
-	const match = tierMatchOf(lowered);
-	if (!match) return null;
-
-	const acronym = /^[a-z0-9]+$/.test(match.keyword);
-	if (acronym && DEMOTE_KEYWORDS.some((keyword) => matches(lowered, keyword))) {
+	if (DEMOTE_KEYWORDS.some((keyword) => matches(lowered, keyword))) {
 		return null;
 	}
 
+	const rank = seniorityRankOf(title);
+	if (rank > GTM_FALLBACK_MAX_RANK) return null;
+
 	return {
-		tier: match.tier,
-		orgFunction: orgFunctionOf(title),
-		seniorityRank: seniorityRankOf(title),
+		tier: rank <= 2 ? 1 : 2,
+		orgFunction: "Other",
+		seniorityRank: rank,
 	};
 }
 
@@ -134,19 +90,23 @@ function escapeChLiteral(value: string): string {
 	return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
-export function buildCoarseTierSql(titleColumnExpr: string): string {
+export function buildCoarseRankSql(titleColumnExpr: string): string {
 	const column = titleColumnExpr.trim();
 	if (!column) {
-		throw new Error("buildCoarseTierSql needs a title column expression");
+		throw new Error("buildCoarseRankSql needs a title column expression");
 	}
 
-	const branches = TIER_KEYWORDS.map((entry) => {
+	const entries = BANDS.flatMap((band) =>
+		band.keywords.map((keyword) => ({ ...keyword, rank: band.rank })),
+	).sort((a, b) => b.keyword.length - a.keyword.length);
+
+	const branches = entries.map((entry) => {
 		const literal = escapeChLiteral(entry.keyword);
 		const condition = /^[a-z0-9]+$/.test(entry.keyword)
 			? `match(lowerUTF8(${column}), '(^|[^a-z0-9])${literal}($|[^a-z0-9])')`
 			: `position(lowerUTF8(${column}), '${literal}') > 0`;
-		return `${condition}, ${entry.tier}`;
+		return `${condition}, ${entry.rank}`;
 	});
 
-	return `multiIf(${branches.join(", ")}, ${GTM_UNMATCHED_TIER})`;
+	return `multiIf(${branches.join(", ")}, ${GTM_UNMATCHED_RANK})`;
 }

@@ -1,3 +1,4 @@
+import { GTM_FUNCTIONS } from "@crm/validation";
 import { GTM_PIPELINE } from "./gtm-config";
 import { type OrgAnalysis, parseOrgAnalysis } from "./gtm-report";
 
@@ -18,11 +19,13 @@ export async function analyzeOrg(
 	const key = process.env.OPENROUTER_API_KEY?.trim();
 	if (!key || candidates.length === 0) return null;
 
-	const roster = candidates.map((candidate) => ({
-		id: candidate.personId,
-		name: candidate.fullName,
-		title: candidate.title,
-	}));
+	const roster = candidates
+		.slice(0, GTM_PIPELINE.hierarchy.cap)
+		.map((candidate) => ({
+			id: candidate.personId,
+			name: candidate.fullName,
+			title: candidate.title,
+		}));
 
 	const prompt =
 		`You are mapping the likely org structure of ${companyName}. Below is ` +
@@ -35,8 +38,7 @@ export async function analyzeOrg(
 		`platform, infrastructure, and the CFO/COO). false for individual ` +
 		`contributors, assistants, interns, office/program staff (e.g. ` +
 		`"CEO's Office"), and managers who do not lead a department.\n` +
-		`- function: exactly one of "Executive", "Engineering", "IT", ` +
-		`"Security", "Data & AI", "Other".\n` +
+		`- function: exactly one of ${GTM_FUNCTIONS.map((f) => `"${f}"`).join(", ")}.\n` +
 		`- seniority: 1 founder/CEO, 2 C-suite, 3 EVP/SVP, 4 VP, ` +
 		`5 head of, 6 director, 7 manager, 8 other.\n` +
 		`- reportsTo: the id of their most likely direct manager FROM THIS ` +

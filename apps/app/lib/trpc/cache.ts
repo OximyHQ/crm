@@ -164,9 +164,10 @@ export function useCrmCache(): CrmCache {
 					companyId
 						? trpc.prospects.list.queryKey({ companyId })
 						: trpc.prospects.list.queryKey(),
+					trpc.prospects.byId.queryKey(),
 					companyId
-						? trpc.prospects.pending.queryKey({ companyId })
-						: trpc.prospects.pending.queryKey(),
+						? trpc.prospects.status.queryKey({ companyId })
+						: trpc.prospects.status.queryKey(),
 				],
 				[
 					...listKeys(),

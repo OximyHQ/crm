@@ -18,6 +18,7 @@ export const prospectProfileSchema = z.object({
 			z.object({
 				title: z.string().catch(""),
 				company: z.string().catch(""),
+				companyId: z.string().nullable().catch(null),
 				from: z.string().nullable().catch(null),
 				to: z.string().nullable().catch(null),
 				current: z.boolean().catch(false),

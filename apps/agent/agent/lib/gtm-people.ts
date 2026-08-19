@@ -1,6 +1,6 @@
 import { db, type Prisma } from "@crm/db";
-import { GTM_PIPELINE } from "./gtm-config";
-import { buildCoarseTierSql, matchTitle } from "./gtm-matcher";
+import { GTM_PIPELINE, GTM_UNMATCHED_RANK } from "./gtm-config";
+import { buildCoarseRankSql, matchTitle } from "./gtm-matcher";
 import { analyzeOrg, gtmOrganizeConfigured } from "./gtm-organize";
 import {
 	departedPerProfile,
@@ -92,7 +92,7 @@ export async function runGtmPeople({
 	if (entities.length === 0) {
 		return {
 			...NONE,
-			reason: `No LinkedIn company matched "${company.name}".`,
+			reason: `No LinkedIn company exactly matched "${company.name}". Fix the company name or domain and refresh.`,
 		};
 	}
 
@@ -106,7 +106,7 @@ export async function runGtmPeople({
 	>();
 	for (const row of roster) {
 		const personId = String(row.profile_id);
-		const coarseTier = Number(row.tier) || GTM_PIPELINE.keep.limit;
+		const coarseTier = Number(row.tier) || GTM_UNMATCHED_RANK;
 		const existing = coarse.get(personId);
 		if (existing && existing.coarseTier <= coarseTier) continue;
 		coarse.set(personId, { personId, title: row.title, coarseTier });
@@ -163,7 +163,7 @@ export async function runGtmPeople({
 			})),
 		);
 		if (analysis) {
-			present = present.filter((row) => {
+			const filtered = present.filter((row) => {
 				const entry = analysis.get(row.personId);
 				if (!entry) return true;
 				if (!entry.keep) return false;
@@ -175,6 +175,15 @@ export async function runGtmPeople({
 				});
 				return true;
 			});
+			if (filtered.length === 0) {
+				console.error(
+					"[agent] the org analysis dropped every candidate; ignoring it",
+				);
+				reportsTo.clear();
+				classified.clear();
+			} else {
+				present = filtered;
+			}
 		}
 	}
 
@@ -267,7 +276,7 @@ async function resolveEntities(
 	};
 	const likes = candidates.map((candidate, index) => {
 		const key = `re_name_${index}`;
-		params[key] = `%${candidate}%`;
+		params[key] = `%${escapeLike(candidate)}%`;
 		return `name_lower LIKE {${key}:String}`;
 	});
 
@@ -281,29 +290,32 @@ async function resolveEntities(
 	);
 
 	const wanted = new Set(candidates);
-	const exact = rows.filter((row) => wanted.has(row.name_lower.trim()));
-	const picked = exact.length > 0 ? exact : rows.slice(0, 1);
-
-	return picked
+	return rows
+		.filter((row) => wanted.has(row.name_lower.trim()))
 		.slice(0, GTM_PIPELINE.resolve.entityLimit)
 		.map((row) => ({ id: String(row.company_id), name: row.name }));
 }
 
+function escapeLike(value: string): string {
+	return value.replace(/[\\%_]/g, (match) => `\\${match}`);
+}
+
 async function fetchRoster(entityIds: string[]): Promise<RosterRow[]> {
-	const tierExpr = buildCoarseTierSql("title");
+	const rankExpr = buildCoarseRankSql("title");
 	return linkedinQuery<RosterRow>(
 		`SELECT profile_id, title, company_name, tier
 		 FROM (
-			SELECT profile_id, title, company_name, ${tierExpr} AS tier
+			SELECT profile_id, title, company_name, ${rankExpr} AS tier
 			FROM profile_company_lookup
 			WHERE company_id IN ({ro_ids:Array(UInt64)}) AND is_current = 1
 		 )
-		 WHERE tier <= 2
+		 WHERE tier <= {ro_rank:UInt8}
 		 ORDER BY tier ASC, profile_id ASC
 		 LIMIT {ro_limit:UInt32}`,
 		{
 			ro_ids: entityIds.map(Number),
 			ro_limit: GTM_PIPELINE.roster.coarseLimit,
+			ro_rank: GTM_PIPELINE.roster.maxRank,
 		},
 	);
 }
@@ -353,12 +365,12 @@ type PersonUpsert = {
 	profileAsOf: Date | null;
 };
 
-const UPDATE_CHUNK = 25;
-
 async function savePeople(
 	companyId: string,
 	people: PersonUpsert[],
 ): Promise<number> {
+	if (people.length === 0) return 0;
+
 	const existing = await db.companyProspect.findMany({
 		where: { companyId },
 		select: { personId: true },
@@ -375,8 +387,9 @@ async function savePeople(
 		});
 	}
 
-	for (let start = 0; start < stale.length; start += UPDATE_CHUNK) {
-		const chunk = stale.slice(start, start + UPDATE_CHUNK);
+	const chunkSize = GTM_PIPELINE.save.updateChunk;
+	for (let start = 0; start < stale.length; start += chunkSize) {
+		const chunk = stale.slice(start, start + chunkSize);
 		await Promise.all(
 			chunk.map(({ personId, ...data }) =>
 				db.companyProspect.update({

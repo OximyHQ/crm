@@ -66,7 +66,7 @@ export class ProspectsService {
 			seniorityRank: row.seniorityRank,
 			reportsToPersonId: row.reportsToPersonId,
 			profileAsOf: row.profileAsOf?.toISOString() ?? null,
-			status: row.status,
+			status: effectiveStatus(row),
 			contactId: row.contactId,
 			updatedAt: row.updatedAt.toISOString(),
 		}));
@@ -95,7 +95,7 @@ export class ProspectsService {
 			seniorityRank: row.seniorityRank,
 			reportsToPersonId: row.reportsToPersonId,
 			profileAsOf: row.profileAsOf?.toISOString() ?? null,
-			status: row.status,
+			status: effectiveStatus(row),
 			contactId: row.contactId,
 			updatedAt: row.updatedAt.toISOString(),
 			profile: parseProspectProfile(row.profile),
@@ -121,6 +121,7 @@ export class ProspectsService {
 		const existingId = await this.matchExistingContact(
 			prospect.companyId,
 			prospect.linkedinUrl,
+			prospect.fullName,
 		);
 		if (existingId) {
 			await this.db.companyProspect.update({
@@ -141,8 +142,6 @@ export class ProspectsService {
 					companyId: prospect.companyId,
 					ownerId: prospect.company.ownerId,
 					source: "PROSPECTING",
-					enrichmentStatus: "COMPLETE",
-					enrichedAt: new Date(),
 				},
 				select: {
 					id: true,
@@ -170,6 +169,8 @@ export class ProspectsService {
 			});
 			return created;
 		});
+
+		await this.agent.contactCreated(contact.id, "Promoted from the People tab");
 
 		this.logger.log({
 			message: "Prospect added as contact",
@@ -216,12 +217,22 @@ export class ProspectsService {
 		return { id, status: "SUGGESTED" };
 	}
 
-	async pending(companyId: string): Promise<boolean> {
-		const row = await this.db.agentTask.findFirst({
-			where: { kind: "gtm-people", companyId, finishedAt: null },
-			select: { id: true },
-		});
-		return row !== null;
+	async status(
+		companyId: string,
+	): Promise<{ running: boolean; lastOutcome: string | null }> {
+		const [open, finished] = await Promise.all([
+			this.db.agentTask.findFirst({
+				where: { kind: "gtm-people", companyId, finishedAt: null },
+				select: { id: true },
+			}),
+			this.db.agentTask.findFirst({
+				where: { kind: "gtm-people", companyId, finishedAt: { not: null } },
+				orderBy: { finishedAt: "desc" },
+				select: { outcome: true },
+			}),
+		]);
+
+		return { running: open !== null, lastOutcome: finished?.outcome ?? null };
 	}
 
 	async refresh(companyId: string): Promise<{ queued: boolean }> {
@@ -245,21 +256,52 @@ export class ProspectsService {
 	private async matchExistingContact(
 		companyId: string,
 		linkedinUrl: string | null,
+		fullName: string,
 	): Promise<string | null> {
-		const canonical = canonicalLinkedIn(linkedinUrl);
-		if (!canonical) return null;
-
 		const contacts = await this.db.contact.findMany({
-			where: { companyId, linkedinUrl: { not: null } },
-			select: { id: true, linkedinUrl: true },
+			where: { companyId },
+			select: {
+				id: true,
+				linkedinUrl: true,
+				firstName: true,
+				lastName: true,
+			},
 		});
 
+		const canonical = canonicalLinkedIn(linkedinUrl);
+		if (canonical) {
+			const byUrl = contacts.find(
+				(contact) => canonicalLinkedIn(contact.linkedinUrl) === canonical,
+			);
+			if (byUrl) return byUrl.id;
+		}
+
+		const wanted = normalizeName(fullName);
+		if (!wanted) return null;
 		return (
 			contacts.find(
-				(contact) => canonicalLinkedIn(contact.linkedinUrl) === canonical,
+				(contact) =>
+					normalizeName(
+						[contact.firstName, contact.lastName].filter(Boolean).join(" "),
+					) === wanted,
 			)?.id ?? null
 		);
 	}
+}
+
+function effectiveStatus(row: {
+	status: ProspectStatus;
+	contactId: string | null;
+}): ProspectStatus {
+	return row.status === "ADDED" && !row.contactId ? "SUGGESTED" : row.status;
+}
+
+function normalizeName(value: string): string {
+	return value
+		.toLowerCase()
+		.replace(/[^a-z ]+/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
 }
 
 function splitName(fullName: string): {

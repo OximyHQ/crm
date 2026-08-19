@@ -3,6 +3,7 @@
 import "@xyflow/react/dist/style.css";
 
 import { Badge } from "@crm/ui/components/badge";
+import { GTM_FUNCTIONS } from "@crm/validation";
 import {
 	Background,
 	type Edge,
@@ -30,14 +31,7 @@ export type ChartPerson = {
 	reportsToPersonId: string | null;
 };
 
-const LANES = [
-	"Executive",
-	"Engineering",
-	"IT",
-	"Security",
-	"Data & AI",
-	"Other",
-];
+const LANES: readonly string[] = GTM_FUNCTIONS;
 
 const CHART = {
 	laneWidth: 210,

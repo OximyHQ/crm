@@ -15,8 +15,9 @@ export type {
 	InputRequested,
 	Permission,
 } from "./agents";
-export type { OximyProduct } from "./oximy";
+export type { GtmOrgFunction, OximyProduct } from "./oximy";
 export {
+	GTM_FUNCTIONS,
 	OXIMY_PRODUCT_LABELS,
 	OXIMY_PRODUCTS,
 	oximyProduct,

@@ -413,9 +413,9 @@ const appRouter = t.router({
     byId: publicProcedure
       .input(prospectIdInput)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProspectsRouter["byId"]>>),
-    pending: publicProcedure
+    status: publicProcedure
       .input(prospectCompanyInput)
-      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProspectsRouter["pending"]>>),
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProspectsRouter["status"]>>),
     addAsContact: publicProcedure
       .input(prospectIdInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProspectsRouter["addAsContact"]>>),
