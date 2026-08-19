@@ -535,6 +535,8 @@ model CompanyProspect {
   orgFunction   String
   seniorityRank Int
 
+  reportsToPersonId String?
+
   profile Json?
 
   profileAsOf DateTime?
