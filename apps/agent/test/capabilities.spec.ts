@@ -12,6 +12,7 @@ const KEYS = [
 	"PERPLEXITY_API_KEY",
 	"BLOB_READ_WRITE_TOKEN",
 	"LINKEDIN_CLICKHOUSE_HOST",
+	"OPENROUTER_API_KEY",
 ] as const;
 
 const saved: Record<string, string | undefined> = {};

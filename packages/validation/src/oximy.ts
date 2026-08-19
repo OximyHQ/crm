@@ -218,3 +218,14 @@ export const linkedinCompanyEmployeesResult = z.union([
 	}),
 	unavailableAgentCapability,
 ]);
+
+export const GTM_FUNCTIONS = [
+	"Executive",
+	"Engineering",
+	"IT",
+	"Security",
+	"Data & AI",
+	"Other",
+] as const;
+
+export type GtmOrgFunction = (typeof GTM_FUNCTIONS)[number];

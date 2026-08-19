@@ -26,6 +26,7 @@ import { logAuthRoute } from "./logging/request-logger.middleware";
 import { MailboxModule } from "./mailbox/mailbox.module";
 import { McpModule } from "./mcp/mcp.module";
 import { MicrosoftModule } from "./microsoft/microsoft.module";
+import { PeopleModule } from "./people/people.module";
 import { QuoModule } from "./quo/quo.module";
 import { QUO } from "./quo/quo-config";
 import { SearchModule } from "./search/search.module";
@@ -77,6 +78,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		GoogleModule,
 		GranolaModule,
 		MicrosoftModule,
+		PeopleModule,
 		QuoModule,
 		McpModule,
 		SyncModule,

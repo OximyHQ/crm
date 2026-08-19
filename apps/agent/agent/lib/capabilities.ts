@@ -46,13 +46,19 @@ export function capabilitiesFrom(
 			...fromEnv(LINKEDIN_CLICKHOUSE),
 			label: "LinkedIn discovery index",
 			gives:
-				"read-only people and company discovery from Oximy's ClickHouse data",
+				"read-only people and company discovery from Oximy's ClickHouse snapshot — seller MCP tools and the People tab's leadership pull",
 		},
 		{
 			...fromEnv("RAPIDAPI_KEY"),
 			label: "LinkedIn",
 			gives:
 				"a person's real name, current title, employer and tenure, self-reported, and so authoritative on identity",
+		},
+		{
+			...fromEnv("OPENROUTER_API_KEY"),
+			label: "People judgement",
+			gives:
+				"an LLM pass over each company's roster — who is real leadership, how they likely report to each other, and a web search per person to drop leavers the snapshot missed",
 		},
 		{
 			...fromEnv("PERPLEXITY_API_KEY"),

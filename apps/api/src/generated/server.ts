@@ -26,6 +26,7 @@ import { fieldListInput, fieldByKeyInput, fieldIdInput, fieldCreateInput, fieldU
 import { setAutoCreateInput, suppressDomainInput, threadInput, calendarEventInput } from "../google/google.contracts";
 import { granolaConnectInput, granolaReviewAssignment } from "../granola/granola.contracts";
 import { setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
+import { personListInput, personIdInput, personCompanyInput } from "../people/people.contracts";
 import { quoConnectInput } from "../quo/quo.contracts";
 import { setAgentModelInput, setResearchKeyInput } from "../settings/settings.contracts";
 import { slackChannelsInput, slackJoinChannelInput, slackCreateChannelInput } from "../slack/slack.contracts";
@@ -45,6 +46,7 @@ import type { FieldsRouter } from "../fields/fields.router";
 import type { GoogleRouter } from "../google/google.router";
 import type { GranolaRouter } from "../granola/granola.router";
 import type { MicrosoftRouter } from "../microsoft/microsoft.router";
+import type { PeopleRouter } from "../people/people.router";
 import type { QuoRouter } from "../quo/quo.router";
 import type { SearchRouter } from "../search/search.router";
 import type { SettingsRouter } from "../settings/settings.router";
@@ -403,6 +405,29 @@ const appRouter = t.router({
     setAutoCreate: publicProcedure
       .input(setOutlookAutoCreateInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<MicrosoftRouter["setAutoCreate"]>>)
+    }),
+  people: t.router({
+    list: publicProcedure
+      .input(personListInput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PeopleRouter["list"]>>),
+    byId: publicProcedure
+      .input(personIdInput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PeopleRouter["byId"]>>),
+    status: publicProcedure
+      .input(personCompanyInput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PeopleRouter["status"]>>),
+    addAsContact: publicProcedure
+      .input(personIdInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PeopleRouter["addAsContact"]>>),
+    dismiss: publicProcedure
+      .input(personIdInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PeopleRouter["dismiss"]>>),
+    restore: publicProcedure
+      .input(personIdInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PeopleRouter["restore"]>>),
+    refresh: publicProcedure
+      .input(personCompanyInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PeopleRouter["refresh"]>>)
     }),
   quo: t.router({
     status: publicProcedure

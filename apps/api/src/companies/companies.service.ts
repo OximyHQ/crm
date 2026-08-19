@@ -322,7 +322,9 @@ export class CompaniesService {
 			domain: company.domain,
 		});
 
-		await this.agent.companyCreated(company.id);
+		await this.agent.companyCreated(company.id, "New company", {
+			people: true,
+		});
 
 		void this.favicon.backfill(company.id, company.domain);
 
@@ -393,6 +395,7 @@ export class CompaniesService {
 				await this.agent.companyCreated(
 					id,
 					"Domain changed — anything we knew was about a different company",
+					{ people: true },
 				);
 				void this.favicon.backfill(id, updated.domain);
 			}

@@ -113,11 +113,12 @@ single place that knows what is set.
 | --- | --- |
 | `PERPLEXITY_API_KEY` | Open-web research with citations; finds a LinkedIn slug |
 | `RAPIDAPI_KEY` | LinkedIn profiles via LinkDAPI |
-| `LINKEDIN_CLICKHOUSE_HOST` | Enables read-only seller discovery from Oximy's LinkedIn index |
+| `LINKEDIN_CLICKHOUSE_HOST` | Read-only LinkedIn index — MCP seller discovery and the People tab's leadership pull |
 | `LINKEDIN_CLICKHOUSE_PORT` | Sets the LinkedIn ClickHouse HTTPS port; defaults to `8443` |
 | `LINKEDIN_CLICKHOUSE_USER` | Sets the LinkedIn ClickHouse user; defaults to `default` |
 | `LINKEDIN_CLICKHOUSE_PASSWORD` | Sets the LinkedIn ClickHouse password |
 | `LINKEDIN_CLICKHOUSE_DATABASE` | Sets the LinkedIn ClickHouse database; defaults to `oximy` |
+| `OPENROUTER_API_KEY` | The People tab's judgement — roster classification, reporting lines, and a web check per person |
 | `GITHUB_TOKEN` | Raises the GitHub rate limit from 60/hour |
 | `BLOB_READ_WRITE_TOKEN` | Mirrors logos and photos into Blob |
 | `AI_GATEWAY_API_KEY` | The model. Not needed on Vercel (OIDC) |

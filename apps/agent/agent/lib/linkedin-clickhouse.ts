@@ -18,10 +18,10 @@ export function linkedinClickHouseConfigured(): boolean {
 	return Boolean(process.env.LINKEDIN_CLICKHOUSE_HOST?.trim());
 }
 
-export async function linkedinQuery(
+export async function linkedinQuery<Row = unknown>(
 	query: string,
 	queryParams: Record<string, unknown>,
-): Promise<unknown[]> {
+): Promise<Row[]> {
 	const clickhouse = linkedinClient();
 	if (!clickhouse) return [];
 
@@ -43,7 +43,7 @@ export async function linkedinQuery(
 				},
 			});
 
-			return result.json<unknown[]>();
+			return result.json<Row>();
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			const transient = TRANSIENT_ERRORS.some((value) =>

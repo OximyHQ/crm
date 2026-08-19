@@ -37,6 +37,7 @@ export class AgentTriggerService {
 	async companyCreated(
 		companyId: string,
 		reason = "New company",
+		options: { people?: boolean } = {},
 	): Promise<void> {
 		await this.enqueue({
 			companyId,
@@ -53,6 +54,10 @@ export class AgentTriggerService {
 			priority: PRIORITY.companyProfile,
 			budget: 4,
 		});
+
+		if (options.people) {
+			await this.gtmPeopleRequested(companyId, reason);
+		}
 	}
 
 	async companyRequested(companyId: string, reason: string): Promise<void> {
@@ -70,6 +75,18 @@ export class AgentTriggerService {
 			reason,
 			priority: PRIORITY.requested,
 			budget: 8,
+		});
+
+		await this.gtmPeopleRequested(companyId, reason);
+	}
+
+	async gtmPeopleRequested(companyId: string, reason: string): Promise<void> {
+		await this.enqueue({
+			companyId,
+			kind: "gtm-people",
+			reason,
+			priority: PRIORITY.gtmPeople,
+			budget: 1,
 		});
 	}
 
