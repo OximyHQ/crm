@@ -55,9 +55,9 @@ export function capabilitiesFrom(
 		},
 		{
 			...fromEnv("OPENROUTER_API_KEY"),
-			label: "People freshness check",
+			label: "People judgement",
 			gives:
-				"a web search per suggested person to confirm they still hold the role, so the People tab drops leavers the snapshot missed",
+				"an LLM pass over each company's roster — who is real leadership, how they likely report to each other, and a web search per person to drop leavers the snapshot missed",
 		},
 		{
 			...fromEnv("PERPLEXITY_API_KEY"),

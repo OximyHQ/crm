@@ -2,6 +2,7 @@ import { db, type Prisma } from "@crm/db";
 import { gtmConfigured, gtmQuery } from "./gtm-clickhouse";
 import { GTM_PIPELINE } from "./gtm-config";
 import { buildCoarseTierSql, matchTitle } from "./gtm-matcher";
+import { analyzeOrg, gtmOrganizeConfigured } from "./gtm-organize";
 import {
 	departedPerProfile,
 	type GtmPeopleResult,
@@ -25,6 +26,7 @@ type RosterRow = {
 	profile_id: string | number;
 	title: string;
 	company_name: string;
+	tier: string | number;
 };
 
 type ExperienceRow = {
@@ -94,54 +96,44 @@ export async function runGtmPeople({
 	const roster = await fetchRoster(entities.map((entity) => entity.id));
 	const coarseTruncated = roster.length >= GTM_PIPELINE.roster.coarseLimit;
 
-	const matched = new Map<
+	const organizing = gtmOrganizeConfigured();
+	const coarse = new Map<
 		string,
-		{
-			personId: string;
-			title: string;
-			companyName: string;
-			tier: number;
-			orgFunction: string;
-			seniorityRank: number;
-		}
+		{ personId: string; title: string; coarseTier: number }
 	>();
 	for (const row of roster) {
-		const match = matchTitle(row.title);
-		if (!match) continue;
 		const personId = String(row.profile_id);
-		const existing = matched.get(personId);
-		if (existing && existing.tier <= match.tier) continue;
-		matched.set(personId, {
-			personId,
-			title: row.title,
-			companyName: row.company_name,
-			...match,
-		});
+		const coarseTier = Number(row.tier) || GTM_PIPELINE.keep.limit;
+		const existing = coarse.get(personId);
+		if (existing && existing.coarseTier <= coarseTier) continue;
+		coarse.set(personId, { personId, title: row.title, coarseTier });
 	}
 
-	const ranked = [...matched.values()].sort(
+	let candidateRows = [...coarse.values()];
+	if (!organizing) {
+		candidateRows = candidateRows.filter((row) => matchTitle(row.title));
+	}
+	candidateRows.sort(
 		(a, b) =>
-			a.tier - b.tier ||
-			a.seniorityRank - b.seniorityRank ||
-			a.personId.localeCompare(b.personId),
+			a.coarseTier - b.coarseTier || a.personId.localeCompare(b.personId),
 	);
-	const kept = ranked.slice(0, GTM_PIPELINE.keep.limit);
-	const truncated = coarseTruncated || ranked.length > kept.length;
+	const capped = candidateRows.slice(0, GTM_PIPELINE.keep.limit);
+	const truncated = coarseTruncated || candidateRows.length > capped.length;
 
-	const profiles = await hydrateProfiles(kept.map((row) => row.personId));
+	const profiles = await hydrateProfiles(capped.map((row) => row.personId));
 
-	if (kept.length > 0 && profiles.size === 0) {
+	if (capped.length > 0 && profiles.size === 0) {
 		return {
 			...NONE,
 			entities: entities.length,
-			reason: `Matched ${kept.length} titles, but none of the profiles could be read. Nothing was changed.`,
+			reason: `Matched ${capped.length} titles, but none of the profiles could be read. Nothing was changed.`,
 		};
 	}
 
 	const entityNames = entities.map((entity) => entity.name);
 	const entityIds = entities.map((entity) => entity.id);
 	let departed = 0;
-	const people = kept.flatMap((row) => {
+	let present = capped.flatMap((row) => {
 		const profile = profiles.get(row.personId);
 		if (!profile?.full_name) return [];
 		const experiences = toExperiences(profile.experience);
@@ -149,27 +141,68 @@ export async function runGtmPeople({
 			departed += 1;
 			return [];
 		}
-		const asOf = parseCrawlDate(profile.updated_at);
+		return [{ ...row, profile, experiences }];
+	});
+
+	const reportsTo = new Map<string, string | null>();
+	const classified = new Map<
+		string,
+		{ tier: number; orgFunction: string; seniorityRank: number }
+	>();
+
+	if (organizing && present.length > 1) {
+		const analysis = await analyzeOrg(
+			company.name,
+			present.map((row) => ({
+				personId: row.personId,
+				fullName: row.profile.full_name,
+				title: row.title,
+			})),
+		);
+		if (analysis) {
+			present = present.filter((row) => {
+				const entry = analysis.get(row.personId);
+				if (!entry) return true;
+				if (!entry.keep) return false;
+				reportsTo.set(row.personId, entry.reportsTo);
+				classified.set(row.personId, {
+					tier: entry.seniorityRank <= 4 ? 1 : 2,
+					orgFunction: entry.orgFunction,
+					seniorityRank: entry.seniorityRank,
+				});
+				return true;
+			});
+		}
+	}
+
+	const people = present.flatMap((row) => {
+		const shape = classified.get(row.personId) ?? matchTitle(row.title);
+		if (!shape) return [];
+		const asOf = parseCrawlDate(row.profile.updated_at);
 		const stored: ProspectProfile = {
-			headline: profile.headline || null,
+			headline: row.profile.headline || null,
 			asOf: asOf?.toISOString() ?? null,
-			experiences: experiences.slice(0, GTM_PIPELINE.profile.experienceLimit),
+			experiences: row.experiences.slice(
+				0,
+				GTM_PIPELINE.profile.experienceLimit,
+			),
 		};
 		return [
 			{
 				personId: row.personId,
-				fullName: profile.full_name,
+				fullName: row.profile.full_name,
 				title: row.title,
-				headline: profile.headline || null,
-				city: profile.city || null,
-				state: profile.state || null,
-				country: profile.country || null,
-				linkedinUrl: profile.profile_url || null,
-				connectionsCount: Number(profile.connections_count) || 0,
-				followerCount: Number(profile.follower_count) || 0,
-				tier: row.tier,
-				orgFunction: row.orgFunction,
-				seniorityRank: row.seniorityRank,
+				headline: row.profile.headline || null,
+				city: row.profile.city || null,
+				state: row.profile.state || null,
+				country: row.profile.country || null,
+				linkedinUrl: row.profile.profile_url || null,
+				connectionsCount: Number(row.profile.connections_count) || 0,
+				followerCount: Number(row.profile.follower_count) || 0,
+				tier: shape.tier,
+				orgFunction: shape.orgFunction,
+				seniorityRank: shape.seniorityRank,
+				reportsToPersonId: reportsTo.get(row.personId) ?? null,
 				profile: stored as unknown as Prisma.InputJsonValue,
 				profileAsOf: asOf,
 			},
@@ -312,6 +345,7 @@ type PersonUpsert = {
 	tier: number;
 	orgFunction: string;
 	seniorityRank: number;
+	reportsToPersonId: string | null;
 	profile: Prisma.InputJsonValue;
 	profileAsOf: Date | null;
 };

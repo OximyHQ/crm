@@ -5,6 +5,7 @@ import {
 	nameCandidates,
 	type ProfileExperience,
 	parseCrawlDate,
+	parseOrgAnalysis,
 	parseVerifyAnswer,
 } from "../agent/lib/gtm-report";
 
@@ -76,6 +77,65 @@ describe("departedPerProfile", () => {
 				["92538015"],
 			),
 		).toBe(true);
+	});
+});
+
+describe("parseOrgAnalysis", () => {
+	const ids = new Set(["1", "2", "3"]);
+
+	it("reads keep, function, seniority and reportsTo", () => {
+		const parsed = parseOrgAnalysis(
+			`Here you go: [
+				{"id": "1", "keep": true, "function": "Executive", "seniority": 1, "reportsTo": null},
+				{"id": "2", "keep": true, "function": "Engineering", "seniority": 2, "reportsTo": "1"},
+				{"id": "3", "keep": false, "function": "Other", "seniority": 8, "reportsTo": "1"}
+			]`,
+			ids,
+		);
+		expect(parsed.get("1")).toEqual({
+			keep: true,
+			orgFunction: "Executive",
+			seniorityRank: 1,
+			reportsTo: null,
+		});
+		expect(parsed.get("2")?.reportsTo).toBe("1");
+		expect(parsed.get("3")?.keep).toBe(false);
+	});
+
+	it("rejects unknown ids, bad functions and self-reports", () => {
+		const parsed = parseOrgAnalysis(
+			`[
+				{"id": "1", "keep": true, "function": "Wizardry", "seniority": 99, "reportsTo": "1"},
+				{"id": "9", "keep": true, "function": "IT", "seniority": 2, "reportsTo": null},
+				{"id": "2", "keep": true, "function": "IT", "seniority": 4, "reportsTo": "9"}
+			]`,
+			ids,
+		);
+		expect(parsed.get("1")).toEqual({
+			keep: true,
+			orgFunction: "Other",
+			seniorityRank: 8,
+			reportsTo: null,
+		});
+		expect(parsed.has("9")).toBe(false);
+		expect(parsed.get("2")?.reportsTo).toBe(null);
+	});
+
+	it("breaks reporting cycles", () => {
+		const parsed = parseOrgAnalysis(
+			`[
+				{"id": "1", "keep": true, "function": "IT", "seniority": 2, "reportsTo": "2"},
+				{"id": "2", "keep": true, "function": "IT", "seniority": 3, "reportsTo": "1"}
+			]`,
+			ids,
+		);
+		const cycled = [parsed.get("1")?.reportsTo, parsed.get("2")?.reportsTo];
+		expect(cycled).toContain(null);
+	});
+
+	it("returns empty on junk", () => {
+		expect(parseOrgAnalysis("no json", ids).size).toBe(0);
+		expect(parseOrgAnalysis("[{broken", ids).size).toBe(0);
 	});
 });
 

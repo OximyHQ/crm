@@ -29,14 +29,31 @@ const PRESIDENT: GtmKeywordRule = {
 	unless: ["vice president", "vp"],
 };
 
+const CEO_OFFICE_TITLES = [
+	"ceo's office",
+	"ceo office",
+	"ceos office",
+	"office of the ceo",
+] as const;
+
+const CEO: GtmKeywordRule = {
+	keyword: "ceo",
+	unless: [...CEO_OFFICE_TITLES],
+};
+
+const FOUNDER: GtmKeywordRule = {
+	keyword: "founder",
+	unless: ["founder's office", "office of the founder"],
+};
+
 export const GTM_ICP_TIERS: readonly GtmTierConfig[] = [
 	{
 		tier: 1,
 		label: "Top decision-makers / budget owners",
 		keywords: [
 			"chief executive officer",
-			"ceo",
-			"founder",
+			CEO,
+			FOUNDER,
 			"cofounder",
 			PRESIDENT,
 			"chief operating officer",
@@ -114,6 +131,8 @@ export const GTM_ICP_TIERS: readonly GtmTierConfig[] = [
 			"head of information technology",
 			"software engineering manager",
 			"founders office",
+			"founder's office",
+			...CEO_OFFICE_TITLES,
 			"chief of staff",
 			"head of staff",
 			"chief architect",
@@ -130,8 +149,8 @@ export const GTM_FUNCTION_RULES: readonly {
 		id: GTM_FUNCTION.EXECUTIVE,
 		keywords: [
 			"chief executive officer",
-			"ceo",
-			"founder",
+			CEO,
+			FOUNDER,
 			"cofounder",
 			PRESIDENT,
 			"chief operating officer",
@@ -215,13 +234,7 @@ export const GTM_SENIORITY_RULES: readonly {
 	{
 		rank: 1,
 		label: "Founder / CEO",
-		keywords: [
-			"founder",
-			"cofounder",
-			"ceo",
-			"chief executive officer",
-			PRESIDENT,
-		],
+		keywords: [FOUNDER, "cofounder", CEO, "chief executive officer", PRESIDENT],
 	},
 	{
 		rank: 2,
@@ -256,6 +269,12 @@ export const GTM_PIPELINE = {
 		concurrency: 4,
 		callTimeoutMs: 20_000,
 		model: "google/gemini-3-flash-preview:online",
+		baseUrl: "https://openrouter.ai/api/v1",
+	},
+	hierarchy: {
+		cap: 150,
+		callTimeoutMs: 90_000,
+		model: "google/gemini-3-flash-preview",
 		baseUrl: "https://openrouter.ai/api/v1",
 	},
 	query: {

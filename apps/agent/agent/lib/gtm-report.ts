@@ -82,6 +82,78 @@ export function departedPerProfile(
 	return atCompany.every((entry) => !entry.current);
 }
 
+export type OrgAnalysis = {
+	keep: boolean;
+	orgFunction: string;
+	seniorityRank: number;
+	reportsTo: string | null;
+};
+
+const ORG_FUNCTIONS = new Set([
+	"Executive",
+	"Engineering",
+	"IT",
+	"Security",
+	"Data & AI",
+	"Other",
+]);
+
+export function parseOrgAnalysis(
+	raw: string,
+	validIds: Set<string>,
+): Map<string, OrgAnalysis> {
+	const out = new Map<string, OrgAnalysis>();
+	const start = raw.indexOf("[");
+	const end = raw.lastIndexOf("]");
+	if (start === -1 || end <= start) return out;
+
+	let entries: unknown;
+	try {
+		entries = JSON.parse(raw.slice(start, end + 1));
+	} catch {
+		return out;
+	}
+	if (!Array.isArray(entries)) return out;
+
+	for (const entry of entries) {
+		if (!entry || typeof entry !== "object") continue;
+		const row = entry as Record<string, unknown>;
+		const id = String(row.id ?? "");
+		if (!validIds.has(id)) continue;
+		const reportsTo = String(row.reportsTo ?? "");
+		const seniority = Number(row.seniority);
+		out.set(id, {
+			keep: row.keep === true,
+			orgFunction: ORG_FUNCTIONS.has(String(row.function))
+				? String(row.function)
+				: "Other",
+			seniorityRank:
+				Number.isInteger(seniority) && seniority >= 1 && seniority <= 8
+					? seniority
+					: 8,
+			reportsTo: validIds.has(reportsTo) && reportsTo !== id ? reportsTo : null,
+		});
+	}
+
+	breakCycles(out);
+	return out;
+}
+
+function breakCycles(entries: Map<string, OrgAnalysis>): void {
+	for (const [id, entry] of entries) {
+		const seen = new Set<string>([id]);
+		let cursor = entry.reportsTo;
+		while (cursor) {
+			if (seen.has(cursor)) {
+				entry.reportsTo = null;
+				break;
+			}
+			seen.add(cursor);
+			cursor = entries.get(cursor)?.reportsTo ?? null;
+		}
+	}
+}
+
 export function parseVerifyAnswer(raw: string): "current" | "left" | "unsure" {
 	const match = raw.match(/\{[\s\S]*\}/);
 	if (!match) return "unsure";
