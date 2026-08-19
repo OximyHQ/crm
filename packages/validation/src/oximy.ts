@@ -30,7 +30,11 @@ export const linkedinPeopleSearchInput = z
 		name: z.string().trim().min(1).max(200).optional(),
 		currentTitle: z.string().trim().min(1).max(200).optional(),
 		currentCompanyName: z.string().trim().min(1).max(200).optional(),
-		currentCompanyId: z.string().trim().min(1).max(40).optional(),
+		currentCompanyId: z
+			.string()
+			.trim()
+			.regex(/^\d+$/, "Use a LinkedIn company identifier.")
+			.optional(),
 		pastCompany: z.string().trim().min(1).max(200).optional(),
 		city: z.string().trim().min(1).max(120).optional(),
 		country: z.string().trim().min(1).max(120).optional(),
@@ -58,6 +62,19 @@ export const linkedinPeopleSearchInput = z
 	)
 	.refine(
 		(input) =>
+			Boolean(
+				input.currentCompanyName ||
+					input.currentCompanyId ||
+					input.city ||
+					input.country,
+			),
+		{
+			message:
+				"Add a current company, city, or country to keep the search bounded.",
+		},
+	)
+	.refine(
+		(input) =>
 			input.companySizeMin === undefined ||
 			input.companySizeMax === undefined ||
 			input.companySizeMin <= input.companySizeMax,
@@ -69,6 +86,7 @@ export const linkedinPersonInput = z.object({
 		.string()
 		.trim()
 		.regex(/^-?\d+$/, "Use a LinkedIn person identifier."),
+	country: z.string().trim().min(1).max(120),
 });
 
 export const linkedinCompanyResolutionInput = z.object({
@@ -110,10 +128,12 @@ export const productContextResult = z.object({
 
 export const linkedinPersonSummary = z.object({
 	id: z.string(),
+	idKind: z.enum(["profile", "company_employee"]),
 	fullName: z.string(),
 	headline: z.string().nullable(),
 	linkedInUrl: z.string().nullable(),
 	location: z.string().nullable(),
+	country: z.string().nullable(),
 	currentTitle: z.string().nullable(),
 	currentCompany: z.string().nullable(),
 	currentCompanyId: z.string().nullable(),

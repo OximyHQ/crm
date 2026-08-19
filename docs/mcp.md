@@ -55,6 +55,14 @@ LinkedIn tools query the optional ClickHouse capability through the agent.
 
 They return source identifiers, timestamps, URLs, bounded results, and cursors.
 
+People searches require a current company, city, or country scope.
+
+Identifiers remain decimal strings across ClickHouse, the agent, and MCP.
+
+Person search identifiers and company employee identifiers use separate source namespaces.
+
+`get_linkedin_person` accepts the identifier and country from `search_linkedin_people`.
+
 They never enrich, score, match identities, or write CRM records.
 
 Company resolution returns ranked candidates.

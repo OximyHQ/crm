@@ -449,7 +449,7 @@ export class McpService {
 			"search_linkedin_people",
 			{
 				description:
-					"Search Oximy's LinkedIn index. Add one filter. Confirm the selected person before writing CRM data.",
+					"Search Oximy's LinkedIn index. Add a current company, city, or country. Confirm the selected person before writing CRM data.",
 				inputSchema: schemas.oximy.linkedinPeopleSearchInput,
 				outputSchema: z.object({
 					result: schemas.oximy.linkedinPeopleSearchResult,
@@ -463,7 +463,7 @@ export class McpService {
 			"get_linkedin_person",
 			{
 				description:
-					"Get one LinkedIn profile by its selected source identifier. This tool does not match CRM identities.",
+					"Get one LinkedIn profile from search_linkedin_people. Pass its profile identifier and country. Company employee identifiers are not accepted.",
 				inputSchema: schemas.oximy.linkedinPersonInput,
 				outputSchema: z.object({
 					result: schemas.oximy.linkedinPersonResult,
@@ -490,7 +490,7 @@ export class McpService {
 			"list_linkedin_company_employees",
 			{
 				description:
-					"List current employees for one confirmed LinkedIn company identifier. Add a title filter when useful.",
+					"List current employees for one confirmed LinkedIn company identifier. Results are company employee summaries with LinkedIn URLs.",
 				inputSchema: schemas.oximy.linkedinCompanyEmployeesInput,
 				outputSchema: z.object({
 					result: schemas.oximy.linkedinCompanyEmployeesResult,

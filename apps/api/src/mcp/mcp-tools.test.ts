@@ -12,6 +12,10 @@ describe("CRM MCP tools", () => {
 		expect(read).toContain("search_communications");
 		expect(read).toContain("get_communication");
 		expect(read).toContain("list_my_tasks");
+		expect(read).toContain("search_linkedin_people");
+		expect(read).toContain("get_linkedin_person");
+		expect(read).toContain("resolve_linkedin_company");
+		expect(read).toContain("list_linkedin_company_employees");
 		expect(read).not.toContain("delete_contact");
 
 		const write = await toolNames("crm:write");
