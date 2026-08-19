@@ -65,10 +65,16 @@ const NONE: Omit<GtmPeopleResult, "reason"> = {
 	truncated: false,
 };
 
+type PhaseReporter = (phase: string) => Promise<void>;
+
+const SILENT: PhaseReporter = async () => {};
+
 export async function runGtmPeople({
 	companyId,
+	onPhase = SILENT,
 }: {
 	companyId: string;
+	onPhase?: PhaseReporter;
 }): Promise<GtmPeopleResult> {
 	const company = await db.company.findUnique({
 		where: { id: companyId },
@@ -90,6 +96,7 @@ export async function runGtmPeople({
 		return { ...NONE, reason: "The company has no usable name to resolve." };
 	}
 
+	await onPhase("Resolving the company in the LinkedIn index");
 	const resolution = await resolveEntities(candidates);
 	const entities = resolution.entities;
 	if (entities.length === 0) {
@@ -99,6 +106,11 @@ export async function runGtmPeople({
 		};
 	}
 
+	await onPhase(
+		`Resolved ${entities.length} LinkedIn ${
+			entities.length === 1 ? "entity" : "entities"
+		} — scanning the roster`,
+	);
 	const roster = await fetchRoster(entities.map((entity) => entity.id));
 	const coarseTruncated = roster.length >= GTM_PIPELINE.roster.coarseLimit;
 
@@ -126,6 +138,9 @@ export async function runGtmPeople({
 	const capped = candidateRows.slice(0, GTM_PIPELINE.keep.limit);
 	const truncated = coarseTruncated || candidateRows.length > capped.length;
 
+	await onPhase(
+		`Found ${capped.length} leadership candidates — reading profiles`,
+	);
 	const profiles = await hydrateProfiles(capped.map((row) => row.personId));
 
 	if (capped.length > 0 && profiles.size === 0) {
@@ -166,6 +181,9 @@ export async function runGtmPeople({
 	>();
 
 	if (organizing && present.length > 1) {
+		await onPhase(
+			`Judging ${present.length} candidates and inferring the hierarchy with AI`,
+		);
 		const analysis = await analyzeOrg(
 			company.name,
 			present.map((row) => ({
@@ -236,6 +254,9 @@ export async function runGtmPeople({
 	let verifiedOut = 0;
 	let toSave = people;
 	if (gtmVerifyConfigured() && people.length > 0) {
+		await onPhase(
+			`Checking on the web that ${Math.min(people.length, GTM_PIPELINE.verify.cap)} people are still there`,
+		);
 		const outcomes = await verifyStillAtCompany(
 			company.name,
 			people.map((person) => ({
@@ -250,6 +271,7 @@ export async function runGtmPeople({
 		verifiedOut = people.length - toSave.length;
 	}
 
+	await onPhase("Saving the people");
 	const saved = await savePeople(companyId, toSave);
 
 	return {

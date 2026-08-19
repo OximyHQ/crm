@@ -218,13 +218,15 @@ export class PeopleService {
 		return { id, status: "SUGGESTED" };
 	}
 
-	async status(
-		companyId: string,
-	): Promise<{ running: boolean; lastOutcome: string | null }> {
+	async status(companyId: string): Promise<{
+		running: boolean;
+		phase: string | null;
+		lastOutcome: string | null;
+	}> {
 		const [open, finished] = await Promise.all([
 			this.db.agentTask.findFirst({
 				where: { kind: "gtm-people", companyId, finishedAt: null },
-				select: { id: true },
+				select: { outcome: true, startedAt: true },
 			}),
 			this.db.agentTask.findFirst({
 				where: { kind: "gtm-people", companyId, finishedAt: { not: null } },
@@ -233,7 +235,11 @@ export class PeopleService {
 			}),
 		]);
 
-		return { running: open !== null, lastOutcome: finished?.outcome ?? null };
+		return {
+			running: open !== null,
+			phase: open?.startedAt ? (open.outcome ?? null) : null,
+			lastOutcome: finished?.outcome ?? null,
+		};
 	}
 
 	async refresh(companyId: string): Promise<{ queued: boolean }> {

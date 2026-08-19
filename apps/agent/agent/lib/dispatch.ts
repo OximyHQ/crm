@@ -18,6 +18,7 @@ import {
 	completeTask,
 	DIRECT_KINDS,
 	type LeasedTask,
+	notePhase,
 	noteSession,
 	retireExhausted,
 	type TaskSubject,
@@ -202,7 +203,10 @@ async function handleDirect(task: LeasedTask): Promise<void> {
 
 	if (task.kind === GTM_PEOPLE_KIND && task.companyId) {
 		try {
-			const result = await runGtmPeople({ companyId: task.companyId });
+			const result = await runGtmPeople({
+				companyId: task.companyId,
+				onPhase: (phase) => notePhase(task.id, phase),
+			});
 			await completeTask(task.id, gtmPeopleOutcome(result));
 		} catch (error) {
 			await completeTask(task.id, `The people pull failed: ${reasonOf(error)}`);

@@ -82,6 +82,7 @@ export function CompanyPeople({
 			current.state.data?.running ? ENRICHMENT_POLL_MS : false,
 	});
 	const running = statusQuery.data?.running === true;
+	const phase = statusQuery.data?.phase ?? null;
 	const lastOutcome = statusQuery.data?.lastOutcome ?? null;
 
 	const query = useQuery({
@@ -193,7 +194,10 @@ export function CompanyPeople({
 				<DetailSheetEmpty
 					icon={UserMultiple}
 					title="Finding people"
-					description={`Pulling ${companyName}'s leadership from the LinkedIn snapshot. This usually takes under a minute.`}
+					description={
+						phase ??
+						`Pulling ${companyName}'s leadership from the LinkedIn snapshot. This usually takes a minute or two.`
+					}
 					action={<Spinner />}
 				/>
 			);
@@ -300,9 +304,9 @@ export function CompanyPeople({
 					Add manually
 				</Button>
 				{running ? (
-					<span className="flex items-center gap-1.5 text-muted-foreground text-sm">
+					<span className="flex min-w-0 items-center gap-1.5 text-muted-foreground text-sm">
 						<Spinner />
-						Updating
+						<span className="truncate">{phase ?? "Updating"}</span>
 					</span>
 				) : (
 					<Tooltip>
