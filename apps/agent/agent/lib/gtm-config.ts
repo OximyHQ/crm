@@ -277,20 +277,4 @@ export const GTM_PIPELINE = {
 		model: "google/gemini-3-flash-preview",
 		baseUrl: "https://openrouter.ai/api/v1",
 	},
-	query: {
-		maxExecutionSeconds: 25,
-		maxThreads: 4,
-		requestTimeoutMs: 30_000,
-		retries: 1,
-		retryBaseMs: 300,
-	},
 } as const;
-
-export const GTM_TRANSIENT_ERRORS = [
-	"502",
-	"503",
-	"ECONNRESET",
-	"ETIMEDOUT",
-	"aborted",
-	"socket hang up",
-] as const;

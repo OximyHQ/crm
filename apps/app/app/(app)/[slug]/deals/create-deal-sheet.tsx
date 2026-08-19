@@ -30,6 +30,13 @@ import {
 	SheetTrigger,
 } from "@crm/ui/components/sheet";
 import { Spinner } from "@crm/ui/components/spinner";
+import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
+import {
+	OXIMY_PRODUCT_LABELS,
+	OXIMY_PRODUCTS,
+	type OximyProduct,
+	oximyProduct,
+} from "@crm/validation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { parseAsBoolean, useQueryState } from "nuqs";
 import { type ComponentProps, Suspense, useId, useState } from "react";
@@ -72,6 +79,7 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 	const [company, setCompany] = useState(companyId ?? UNSET);
 	const [ownerId, setOwnerId] = useState(UNSET);
 	const [stage, setStage] = useState<string>("DEMO_BOOKED");
+	const [products, setProducts] = useState<OximyProduct[]>([]);
 	const [amount, setAmount] = useState("");
 	const [currency, setCurrency] = useState("");
 	const [closeDate, setCloseDate] = useState("");
@@ -98,6 +106,7 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 				setAmount("");
 				setCurrency("");
 				setCloseDate("");
+				setProducts([]);
 				openRecord({ kind: "deal", id: deal.id });
 			},
 			onError: (error) => toast.error(error.message),
@@ -105,7 +114,10 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 	);
 
 	const ready =
-		name.trim() !== "" && company !== UNSET && resolvedOwner !== UNSET;
+		name.trim() !== "" &&
+		company !== UNSET &&
+		resolvedOwner !== UNSET &&
+		products.length > 0;
 
 	return (
 		<Sheet open={open} onOpenChange={(next) => setOpen(next || null)}>
@@ -125,12 +137,17 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 					className="flex-1 overflow-y-auto px-4"
 					onSubmit={(event) => {
 						event.preventDefault();
+						if (products.length === 0) {
+							toast.error("Choose at least one product.");
+							return;
+						}
 						const parsed = Number.parseFloat(amount);
 						create.mutate({
 							name,
 							companyId: company,
 							ownerId: resolvedOwner,
 							stage: stage as never,
+							products,
 							amountCents: Number.isFinite(parsed)
 								? Math.round(parsed * 100)
 								: null,
@@ -175,6 +192,28 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 									))}
 								</SelectContent>
 							</Select>
+						</Field>
+
+						<Field>
+							<FieldLabel>Products</FieldLabel>
+							<ToggleGroup
+								type="multiple"
+								variant="outline"
+								value={products}
+								onValueChange={(values) =>
+									setProducts(values.map((value) => oximyProduct.parse(value)))
+								}
+								aria-label="Products"
+							>
+								{OXIMY_PRODUCTS.map((value) => (
+									<ToggleGroupItem key={value} value={value}>
+										{OXIMY_PRODUCT_LABELS[value]}
+									</ToggleGroupItem>
+								))}
+							</ToggleGroup>
+							<FieldDescription>
+								Select every product included in this deal.
+							</FieldDescription>
 						</Field>
 
 						<Field>

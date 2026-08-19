@@ -14,6 +14,7 @@ import {
 	memberListInput,
 	setMemberRoleInput,
 	updateWorkspaceInput,
+	updateWorkspaceProfileInput,
 } from "./workspace.contracts";
 import { WorkspaceService } from "./workspace.service";
 
@@ -43,6 +44,14 @@ export class WorkspaceRouter {
 		@Input() input: z.infer<typeof updateWorkspaceInput>,
 	) {
 		return this.workspace.update(ctx.user.id, input);
+	}
+
+	@Mutation({ input: updateWorkspaceProfileInput })
+	async updateProfile(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof updateWorkspaceProfileInput>,
+	) {
+		return this.workspace.updateProfile(ctx.user.id, input);
 	}
 
 	@Mutation({ input: setMemberRoleInput })

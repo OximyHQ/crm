@@ -1,4 +1,5 @@
 import { DealStage } from "@crm/db";
+import { oximyProducts } from "@crm/validation";
 import { z } from "zod";
 import { bulkIdsInput } from "../crm/bulk";
 import { currencyCode } from "../currency/currency.contracts";
@@ -23,6 +24,14 @@ export const CLOSING_WINDOWS = [
 	"none",
 ] as const;
 
+export const DEAL_PRODUCT_FILTERS = [
+	"all",
+	"visibility",
+	"relay",
+	"sidekick",
+	"unspecified",
+] as const;
+
 export type ClosingWindow = (typeof CLOSING_WINDOWS)[number];
 
 export const dealListInput = listInput.extend({
@@ -30,6 +39,10 @@ export const dealListInput = listInput.extend({
 	owner: z.string().default("all"),
 	stage: z.string().default("all"),
 	closing: z.string().default("all"),
+	product: z
+		.string()
+		.refine((value) => DEAL_PRODUCT_FILTERS.some((entry) => entry === value))
+		.default("all"),
 });
 
 export type DealListInput = z.infer<typeof dealListInput>;
@@ -46,6 +59,7 @@ export const dealCreateInput = z.object({
 	amountCents,
 	currency: currencyCode.optional(),
 	expectedCloseDate: z.string().nullable().optional(),
+	products: oximyProducts,
 });
 
 export type DealCreateInput = z.infer<typeof dealCreateInput>;
@@ -58,6 +72,7 @@ export const dealUpdateInput = z.object({
 	amountCents,
 	currency: currencyCode.optional(),
 	expectedCloseDate: z.string().nullable().optional(),
+	products: oximyProducts.optional(),
 	fields: recordFieldValues.optional(),
 });
 

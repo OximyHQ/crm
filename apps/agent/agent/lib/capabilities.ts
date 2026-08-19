@@ -4,6 +4,7 @@ import { db } from "@crm/db";
 import { readContextDevKey } from "@crm/db/settings";
 
 export const CONTEXT_DEV = "CONTEXT_DEV";
+export const LINKEDIN_CLICKHOUSE = "LINKEDIN_CLICKHOUSE_HOST";
 
 export type Capability = {
 	readonly id: string;
@@ -42,16 +43,16 @@ export function capabilitiesFrom(
 
 	return [
 		{
+			...fromEnv(LINKEDIN_CLICKHOUSE),
+			label: "LinkedIn discovery index",
+			gives:
+				"read-only people and company discovery from Oximy's ClickHouse snapshot — seller MCP tools and the People tab's leadership pull",
+		},
+		{
 			...fromEnv("RAPIDAPI_KEY"),
 			label: "LinkedIn",
 			gives:
 				"a person's real name, current title, employer and tenure, self-reported, and so authoritative on identity",
-		},
-		{
-			...fromEnv("LINKEDIN_CLICKHOUSE_HOST"),
-			label: "LinkedIn people dataset",
-			gives:
-				"a company's likely buyers — current leadership and departmental titles from a static LinkedIn snapshot, each with a LinkedIn URL",
 		},
 		{
 			...fromEnv("OPENROUTER_API_KEY"),

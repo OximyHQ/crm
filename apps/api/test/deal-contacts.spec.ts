@@ -86,6 +86,7 @@ beforeAll(async () => {
 		name: `Renewal ${suffix}`,
 		companyId,
 		ownerId: userId,
+		products: ["visibility"],
 	});
 	dealId = deal.id;
 });

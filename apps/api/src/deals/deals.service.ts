@@ -12,6 +12,7 @@ import {
 	LOSING_DEAL_STAGES,
 	OPEN_DEAL_STAGES,
 } from "@crm/db/deal-stage";
+import { OXIMY_PRODUCTS, type OximyProduct } from "@crm/validation";
 import {
 	BadRequestException,
 	Injectable,
@@ -53,7 +54,7 @@ import type {
 	DealUpdateInput,
 	SetStageInput,
 } from "./deals.contracts";
-import { CLOSING_WINDOWS } from "./deals.contracts";
+import { CLOSING_WINDOWS, DEAL_PRODUCT_FILTERS } from "./deals.contracts";
 
 const OWNER_SELECT = {
 	id: true,
@@ -126,6 +127,7 @@ export class DealsService {
 					select: {
 						id: true,
 						name: true,
+						products: true,
 						stage: true,
 						amount: true,
 						currency: true,
@@ -162,16 +164,19 @@ export class DealsService {
 					lastActivityAt,
 					createdAt,
 					...row
-				}) => ({
-					...row,
-					amountCents: toCents(amount),
-					baseAmountCents: toCents(baseAmount),
-					expectedCloseDate: expectedCloseDate?.toISOString() ?? null,
-					closedAt: closedAt?.toISOString() ?? null,
-					lastActivityAt: lastActivityAt?.toISOString() ?? null,
-					createdAt: createdAt.toISOString(),
-					fields: tableFields.get(row.id) ?? {},
-				}),
+				}) => {
+					const fields = tableFields.get(row.id) ?? {};
+					return {
+						...row,
+						amountCents: toCents(amount),
+						baseAmountCents: toCents(baseAmount),
+						expectedCloseDate: expectedCloseDate?.toISOString() ?? null,
+						closedAt: closedAt?.toISOString() ?? null,
+						lastActivityAt: lastActivityAt?.toISOString() ?? null,
+						createdAt: createdAt.toISOString(),
+						fields,
+					};
+				},
 			),
 			total,
 			facetCounts,
@@ -192,6 +197,7 @@ export class DealsService {
 				id: true,
 				name: true,
 				description: true,
+				products: true,
 				stage: true,
 				stageChangedAt: true,
 				amount: true,
@@ -217,10 +223,11 @@ export class DealsService {
 		}
 
 		const { contacts, amount, baseAmount, fxRate, fxRateAt, ...rest } = deal;
+		const fields = await this.fields.valuesFor("DEAL", id);
 
 		return {
 			...rest,
-			fields: await this.fields.valuesFor("DEAL", id),
+			fields,
 			amountCents: toCents(amount),
 			baseAmountCents: toCents(baseAmount),
 			reportingCurrency: await this.conversion.reportingCurrency(),
@@ -254,6 +261,7 @@ export class DealsService {
 						name: input.name.trim(),
 						companyId: input.companyId,
 						ownerId: input.ownerId,
+						products: input.products,
 						stage,
 						stageChangedAt: now,
 						closedAt: closed ? now : null,
@@ -283,7 +291,7 @@ export class DealsService {
 
 			this.logger.log({ message: "Deal created", dealId: deal.id, stage });
 
-			return deal;
+			return { ...deal, products: input.products };
 		} catch (error) {
 			throw this.translateRelations(error);
 		}
@@ -312,6 +320,7 @@ export class DealsService {
 		if (input.expectedCloseDate !== undefined) {
 			data.expectedCloseDate = parseDate(input.expectedCloseDate);
 		}
+		if (input.products !== undefined) data.products = input.products;
 
 		if (input.amountCents !== undefined || input.currency !== undefined) {
 			const current = await this.db.deal.findUnique({
@@ -337,8 +346,9 @@ export class DealsService {
 
 		try {
 			return await this.db.$transaction(async (tx) => {
-				if (input.fields) {
-					await this.fields.applyValues(tx, "DEAL", id, input.fields);
+				const fieldValues = input.fields ?? {};
+				if (Object.keys(fieldValues).length > 0) {
+					await this.fields.applyValues(tx, "DEAL", id, fieldValues);
 				}
 
 				return tx.deal.update({
@@ -652,6 +662,7 @@ export class DealsService {
 
 	private buildWhere(input: DealListInput): Prisma.DealWhereInput {
 		const where: Prisma.DealWhereInput = this.searchFilter(input.q);
+		const product = dealProductFilter(input.product);
 
 		if (input.owner !== FACET_ALL) {
 			where.ownerId =
@@ -672,19 +683,35 @@ export class DealsService {
 			Object.assign(where, closingFilter(input.closing as ClosingWindow));
 		}
 
+		if (product !== FACET_ALL) {
+			Object.assign(where, productFilter(product));
+		}
+
 		return where;
 	}
 
 	private async facetCounts(input: DealListInput) {
 		const where = this.searchFilter(input.q);
 
-		const [owners, stages, ...closingCounts] = await Promise.all([
+		const [owners, stages, ...counts] = await Promise.all([
 			this.db.deal.groupBy({ by: ["ownerId"], where, _count: { _all: true } }),
 			this.db.deal.groupBy({ by: ["stage"], where, _count: { _all: true } }),
 			...CLOSING_WINDOWS.map((window) =>
 				this.db.deal.count({ where: { ...where, ...closingFilter(window) } }),
 			),
+			...OXIMY_PRODUCTS.map((product) =>
+				this.db.deal.count({ where: { ...where, products: { has: product } } }),
+			),
+			this.db.deal.count({ where: { ...where, products: { isEmpty: true } } }),
 		]);
+		const closingCounts = counts.slice(0, CLOSING_WINDOWS.length);
+		const productCounts = counts.slice(CLOSING_WINDOWS.length);
+		const products: Record<string, number> = {
+			unspecified: productCounts[OXIMY_PRODUCTS.length] ?? 0,
+		};
+		for (const [index, product] of OXIMY_PRODUCTS.entries()) {
+			products[product] = productCounts[index] ?? 0;
+		}
 
 		const stageCounts = countsByKey(stages, "stage");
 		const openCount = OPEN_DEAL_STAGES.reduce(
@@ -706,6 +733,7 @@ export class DealsService {
 					closingCounts[index] ?? 0,
 				]),
 			),
+			product: products,
 		};
 	}
 
@@ -757,6 +785,23 @@ function closingFilter(window: ClosingWindow): Prisma.DealWhereInput {
 		case "none":
 			return { expectedCloseDate: null };
 	}
+}
+
+function productFilter(
+	product: OximyProduct | "unspecified",
+): Prisma.DealWhereInput {
+	return {
+		products: product === "unspecified" ? { isEmpty: true } : { has: product },
+	};
+}
+
+function dealProductFilter(
+	value: string,
+): OximyProduct | "all" | "unspecified" {
+	const parsed = DEAL_PRODUCT_FILTERS.find((entry) => entry === value);
+	if (!parsed)
+		throw new BadRequestException(`"${value}" is not a product filter.`);
+	return parsed;
 }
 
 function roleOrNull(value: string | null): string | null {

@@ -1,5 +1,4 @@
 import { db, type Prisma } from "@crm/db";
-import { gtmConfigured, gtmQuery } from "./gtm-clickhouse";
 import { GTM_PIPELINE } from "./gtm-config";
 import { buildCoarseTierSql, matchTitle } from "./gtm-matcher";
 import { analyzeOrg, gtmOrganizeConfigured } from "./gtm-organize";
@@ -12,6 +11,10 @@ import {
 	parseCrawlDate,
 } from "./gtm-report";
 import { gtmVerifyConfigured, verifyStillAtCompany } from "./gtm-verify";
+import {
+	linkedinClickHouseConfigured,
+	linkedinQuery,
+} from "./linkedin-clickhouse";
 
 export { type GtmPeopleResult, gtmPeopleOutcome } from "./gtm-report";
 
@@ -72,7 +75,7 @@ export async function runGtmPeople({
 
 	if (!company) return { ...NONE, reason: "No such company." };
 
-	if (!gtmConfigured()) {
+	if (!linkedinClickHouseConfigured()) {
 		return {
 			...NONE,
 			reason:
@@ -268,7 +271,7 @@ async function resolveEntities(
 		return `name_lower LIKE {${key}:String}`;
 	});
 
-	const rows = await gtmQuery<EntityRow>(
+	const rows = await linkedinQuery<EntityRow>(
 		`SELECT company_id, name, name_lower, employee_count
 		 FROM gtm_companies FINAL
 		 WHERE ${likes.join(" OR ")}
@@ -288,7 +291,7 @@ async function resolveEntities(
 
 async function fetchRoster(entityIds: string[]): Promise<RosterRow[]> {
 	const tierExpr = buildCoarseTierSql("title");
-	return gtmQuery<RosterRow>(
+	return linkedinQuery<RosterRow>(
 		`SELECT profile_id, title, company_name, tier
 		 FROM (
 			SELECT profile_id, title, company_name, ${tierExpr} AS tier
@@ -310,7 +313,7 @@ async function hydrateProfiles(
 ): Promise<Map<string, ProfileRow>> {
 	if (personIds.length === 0) return new Map();
 
-	const rows = await gtmQuery<ProfileRow>(
+	const rows = await linkedinQuery<ProfileRow>(
 		`SELECT
 			id, full_name,
 			COALESCE(headline, '') AS headline,

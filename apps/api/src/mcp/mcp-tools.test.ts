@@ -12,6 +12,10 @@ describe("CRM MCP tools", () => {
 		expect(read).toContain("search_communications");
 		expect(read).toContain("get_communication");
 		expect(read).toContain("list_my_tasks");
+		expect(read).toContain("search_linkedin_people");
+		expect(read).toContain("get_linkedin_person");
+		expect(read).toContain("resolve_linkedin_company");
+		expect(read).toContain("list_linkedin_company_employees");
 		expect(read).not.toContain("delete_contact");
 
 		const write = await toolNames("crm:write");
@@ -193,9 +197,11 @@ async function mcpClient(
 		dependency("fields") as never,
 		dependency("users") as never,
 		dependency("search") as never,
+		dependency("workspace") as never,
 		dependency("agents") as never,
 		dependency("runs") as never,
 		dependency("conversations") as never,
+		dependency("agentBridge") as never,
 	);
 	const server = await mcp.createServer({ sub: "user", scope: scopes });
 	const client = new Client({ name: "test", version: "1.0.0" });

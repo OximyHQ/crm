@@ -203,6 +203,7 @@ describe("deleting a selection", () => {
 			name: `Doomed deal ${suffix}`,
 			companyId: doomed.id,
 			ownerId,
+			products: ["visibility"],
 		});
 
 		expect(await companies.bulkDelete([doomed.id])).toEqual({
@@ -222,6 +223,7 @@ describe("moving a selection of deals to a stage", () => {
 			name: `Unreasoned ${suffix}`,
 			companyId,
 			ownerId,
+			products: ["visibility"],
 		});
 
 		await expect(
@@ -241,11 +243,13 @@ describe("moving a selection of deals to a stage", () => {
 			name: `Lost one ${suffix}`,
 			companyId,
 			ownerId,
+			products: ["visibility"],
 		});
 		const second = await deals.create({
 			name: `Lost two ${suffix}`,
 			companyId,
 			ownerId,
+			products: ["visibility"],
 		});
 
 		expect(
