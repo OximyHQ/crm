@@ -213,6 +213,14 @@ export class ProspectsService {
 		return { id, status: "SUGGESTED" };
 	}
 
+	async pending(companyId: string): Promise<boolean> {
+		const row = await this.db.agentTask.findFirst({
+			where: { kind: "gtm-people", companyId, finishedAt: null },
+			select: { id: true },
+		});
+		return row !== null;
+	}
+
 	async refresh(companyId: string): Promise<{ queued: boolean }> {
 		const company = await this.db.company.findUnique({
 			where: { id: companyId },

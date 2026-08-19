@@ -211,7 +211,6 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 							companyId={company.id}
 							companyName={company.name}
 							ownerId={company.owner?.id ?? null}
-							running={enrichmentRunning}
 						/>
 					),
 				},

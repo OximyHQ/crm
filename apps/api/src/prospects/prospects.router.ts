@@ -25,6 +25,11 @@ export class ProspectsRouter {
 		return this.prospects.byId(id);
 	}
 
+	@Query({ input: prospectCompanyInput })
+	async pending(@Input("companyId") companyId: string) {
+		return this.prospects.pending(companyId);
+	}
+
 	@Mutation({ input: prospectIdInput })
 	async addAsContact(@Input("id") id: string) {
 		return this.prospects.addAsContact(id);

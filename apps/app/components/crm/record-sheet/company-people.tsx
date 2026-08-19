@@ -74,15 +74,20 @@ export function CompanyPeople({
 	companyId,
 	companyName,
 	ownerId,
-	running,
 }: {
 	companyId: string;
 	companyName: string;
 	ownerId: string | null;
-	running: boolean;
 }) {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
+
+	const pendingQuery = useQuery({
+		...trpc.prospects.pending.queryOptions({ companyId }),
+		refetchInterval: (current) =>
+			current.state.data === true ? ENRICHMENT_POLL_MS : false,
+	});
+	const running = pendingQuery.data === true;
 
 	const query = useQuery({
 		...trpc.prospects.list.queryOptions({ companyId }),
@@ -157,7 +162,7 @@ export function CompanyPeople({
 		trpc.prospects.refresh.mutationOptions({
 			onSuccess: () => {
 				toast.success("Queued. People will refresh shortly.");
-				void cache.company(companyId);
+				void cache.prospects(companyId);
 			},
 			onError: (error) => toast.error(error.message),
 		}),
