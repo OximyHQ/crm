@@ -31,6 +31,7 @@ export type RecordFieldEntry = {
 	key: string;
 	label: string;
 	type: string;
+	required: boolean;
 	showOnSheet: boolean;
 	options: RecordFieldOption[];
 	value: FieldValueJson;
@@ -133,19 +134,21 @@ export function RecordFields({
 					}
 
 					if (field.type === "SELECT") {
+						const emptyValue = field.required ? "" : NONE;
 						return (
 							<InlineSelectField
 								key={field.id}
 								label={field.label}
-								value={field.value === null ? NONE : String(field.value)}
+								value={field.value === null ? emptyValue : String(field.value)}
 								options={[
-									{ value: NONE, label: "None" },
+									...(field.required ? [] : [{ value: NONE, label: "None" }]),
 									...field.options.map((option) => ({
 										value: option.id,
 										label: option.label,
 									})),
 								]}
 								saving={busy}
+								placeholder={field.required ? "Choose a value" : "None"}
 								onSave={(next) => save(next === NONE ? null : next)}
 							/>
 						);

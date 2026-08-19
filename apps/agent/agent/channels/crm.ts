@@ -30,6 +30,13 @@ import {
 	createGranolaWebhook,
 	deleteGranolaWebhook,
 } from "../lib/granola-client";
+import {
+	getLinkedinPerson,
+	listLinkedinCompanyEmployees,
+	resolveLinkedinCompany,
+	searchLinkedinPeople,
+} from "../lib/linkedin-discovery";
+import { productContext } from "../lib/oximy-product-context";
 import { createQuoConnection, deleteQuoWebhook } from "../lib/quo-client";
 import { finishRun } from "../lib/run-runtime";
 import { attribute } from "../lib/session-purpose";
@@ -67,6 +74,104 @@ export function taskFromToken(token: string | undefined): string | null {
 
 export default defineChannel({
 	routes: [
+		POST("/internal/crm/product-context", async (request) => {
+			if (!authorised(request)) {
+				return new Response("Unauthorized", { status: 401 });
+			}
+
+			const parsed = schemas.oximy.productContextInput.safeParse(
+				await request.json().catch(() => null),
+			);
+			if (!parsed.success) {
+				return Response.json(
+					{ error: "The product is invalid." },
+					{ status: 400 },
+				);
+			}
+
+			return Response.json(await productContext(parsed.data.product));
+		}),
+
+		POST("/internal/crm/linkedin/search-people", async (request) => {
+			if (!authorised(request)) {
+				return new Response("Unauthorized", { status: 401 });
+			}
+
+			const parsed = schemas.oximy.linkedinPeopleSearchInput.safeParse(
+				await request.json().catch(() => null),
+			);
+			if (!parsed.success) {
+				return Response.json(
+					{
+						error: parsed.error.issues[0]?.message ?? "The search is invalid.",
+					},
+					{ status: 400 },
+				);
+			}
+
+			return Response.json(await searchLinkedinPeople(parsed.data));
+		}),
+
+		POST("/internal/crm/linkedin/person", async (request) => {
+			if (!authorised(request)) {
+				return new Response("Unauthorized", { status: 401 });
+			}
+
+			const parsed = schemas.oximy.linkedinPersonInput.safeParse(
+				await request.json().catch(() => null),
+			);
+			if (!parsed.success) {
+				return Response.json(
+					{
+						error: parsed.error.issues[0]?.message ?? "The person is invalid.",
+					},
+					{ status: 400 },
+				);
+			}
+
+			return Response.json(await getLinkedinPerson(parsed.data));
+		}),
+
+		POST("/internal/crm/linkedin/resolve-company", async (request) => {
+			if (!authorised(request)) {
+				return new Response("Unauthorized", { status: 401 });
+			}
+
+			const parsed = schemas.oximy.linkedinCompanyResolutionInput.safeParse(
+				await request.json().catch(() => null),
+			);
+			if (!parsed.success) {
+				return Response.json(
+					{
+						error: parsed.error.issues[0]?.message ?? "The company is invalid.",
+					},
+					{ status: 400 },
+				);
+			}
+
+			return Response.json(await resolveLinkedinCompany(parsed.data));
+		}),
+
+		POST("/internal/crm/linkedin/company-employees", async (request) => {
+			if (!authorised(request)) {
+				return new Response("Unauthorized", { status: 401 });
+			}
+
+			const parsed = schemas.oximy.linkedinCompanyEmployeesInput.safeParse(
+				await request.json().catch(() => null),
+			);
+			if (!parsed.success) {
+				return Response.json(
+					{
+						error: parsed.error.issues[0]?.message ?? "The company is invalid.",
+					},
+					{ status: 400 },
+				);
+			}
+
+			return Response.json(await listLinkedinCompanyEmployees(parsed.data));
+		}),
+
 		GET("/internal/crm/dispatch-health", async (request) => {
 			if (!authorised(request)) {
 				return new Response("Unauthorized", { status: 401 });

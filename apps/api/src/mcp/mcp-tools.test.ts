@@ -3,7 +3,110 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpService } from "./mcp.service";
 
+const RETAINED_TOOL_NAMES = [
+	"search_crm",
+	"list_companies",
+	"get_company",
+	"list_contacts",
+	"get_contact",
+	"list_communications",
+	"search_communications",
+	"get_communication",
+	"list_deals",
+	"get_deal",
+	"list_users",
+	"list_fields",
+	"get_custom_field",
+	"get_custom_field_coverage",
+	"get_dashboard_summary",
+	"get_activity_timeline",
+	"get_activity_timeline_counts",
+	"list_my_tasks",
+	"create_company",
+	"update_company",
+	"create_contact",
+	"resolve_communication",
+	"update_contact",
+	"create_deal",
+	"update_deal",
+	"set_deal_stage",
+	"attach_contact_to_deal",
+	"bulk_update_companies",
+	"bulk_assign_company_owner",
+	"bulk_enrich_companies",
+	"enrich_company",
+	"set_company_primary_contact",
+	"bulk_update_contacts",
+	"bulk_assign_contact_owner",
+	"bulk_move_contacts",
+	"bulk_enrich_contacts",
+	"decide_contact_fact",
+	"detach_contact_from_deal",
+	"set_deal_contact_role",
+	"bulk_update_deals",
+	"bulk_assign_deal_owner",
+	"bulk_set_deal_stage",
+	"create_activity",
+	"complete_task",
+	"delete_activity",
+	"delete_company",
+	"bulk_delete_companies",
+	"delete_contact",
+	"bulk_delete_contacts",
+	"delete_deal",
+	"bulk_delete_deals",
+	"research_company",
+	"research_contact",
+	"list_agents",
+	"start_agent_run",
+	"get_agent",
+	"list_agent_runs",
+	"list_agent_activity",
+	"list_agent_files",
+	"create_agent_draft",
+	"get_agent_creation",
+	"answer_agent_creation_question",
+	"update_agent",
+	"save_agent_file",
+	"revise_agent",
+	"deploy_agent",
+	"retry_agent_run",
+	"cancel_agent_run",
+	"delete_agent",
+	"pause_agent",
+	"resume_agent",
+	"archive_agent",
+	"restore_agent",
+	"create_custom_field",
+	"update_custom_field",
+	"reorder_custom_fields",
+	"archive_custom_field",
+	"restore_custom_field",
+	"backfill_custom_field",
+	"delete_custom_field",
+] as const;
+
 describe("CRM MCP tools", () => {
+	it("retains every existing tool and complete annotations", async () => {
+		const client = await mcpClient(
+			"crm:read crm:write crm:agents crm:delete crm:admin",
+			"owner",
+			[],
+		);
+		const response = await client.listTools();
+		const names = new Set(response.tools.map((tool) => tool.name));
+
+		for (const name of RETAINED_TOOL_NAMES) {
+			expect(names.has(name)).toBe(true);
+		}
+		for (const tool of response.tools) {
+			expect(tool.annotations?.readOnlyHint).toBeBoolean();
+			expect(tool.annotations?.destructiveHint).toBeBoolean();
+			expect(tool.annotations?.idempotentHint).toBeBoolean();
+			expect(tool.annotations?.openWorldHint).toBeBoolean();
+		}
+	});
+
 	it("exposes expanded read, write, agent, delete, and admin tools by scope", async () => {
 		const read = await toolNames("crm:read");
 		expect(read).toContain("get_dashboard_summary");
@@ -12,6 +115,11 @@ describe("CRM MCP tools", () => {
 		expect(read).toContain("search_communications");
 		expect(read).toContain("get_communication");
 		expect(read).toContain("list_my_tasks");
+		expect(read).toContain("get_oximy_product_context");
+		expect(read).toContain("search_linkedin_people");
+		expect(read).toContain("get_linkedin_person");
+		expect(read).toContain("resolve_linkedin_company");
+		expect(read).toContain("list_linkedin_company_employees");
 		expect(read).not.toContain("delete_contact");
 
 		const write = await toolNames("crm:write");
@@ -20,6 +128,7 @@ describe("CRM MCP tools", () => {
 		expect(write).toContain("detach_contact_from_deal");
 		expect(write).toContain("create_activity");
 		expect(write).toContain("resolve_communication");
+		expect(write).not.toContain("search_linkedin_people");
 		expect(write).not.toContain("delete_contact");
 
 		const agents = await toolNames("crm:agents");
@@ -45,6 +154,40 @@ describe("CRM MCP tools", () => {
 
 		const memberAdmin = await toolNames("crm:admin", "member");
 		expect(memberAdmin).not.toContain("create_custom_field");
+	});
+
+	it("returns structured and text results for retained tools", async () => {
+		const client = await mcpClient("crm:read", "owner", []);
+		const response = await client.callTool({
+			name: "list_users",
+			arguments: {},
+		});
+
+		expect(response.structuredContent).toEqual({ result: { id: "result" } });
+		expect(response.content).toEqual([
+			{ type: "text", text: '{"id":"result"}' },
+		]);
+	});
+
+	it("publishes complete annotations and schemas for new tools", async () => {
+		const client = await mcpClient("crm:read", "owner", []);
+		const tools = await client.listTools();
+		const byName = new Map(tools.tools.map((tool) => [tool.name, tool]));
+
+		expect(byName.get("search_crm")?.annotations).toEqual({
+			readOnlyHint: true,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false,
+		});
+		expect(byName.get("search_linkedin_people")?.annotations).toEqual({
+			readOnlyHint: true,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: true,
+		});
+		expect(byName.get("search_linkedin_people")?.outputSchema).toBeDefined();
+		expect(byName.get("get_oximy_product_context")?.outputSchema).toBeDefined();
 	});
 
 	it("routes mutations through existing services with actor context", async () => {
@@ -196,6 +339,7 @@ async function mcpClient(
 		dependency("agents") as never,
 		dependency("runs") as never,
 		dependency("conversations") as never,
+		dependency("agentBridge") as never,
 	);
 	const server = await mcp.createServer({ sub: "user", scope: scopes });
 	const client = new Client({ name: "test", version: "1.0.0" });

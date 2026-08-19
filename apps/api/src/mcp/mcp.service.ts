@@ -6,6 +6,7 @@ import {
 	type WorkspaceRole,
 } from "@crm/auth";
 import type { Db } from "@crm/db";
+import { schemas } from "@crm/validation";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import type { JWTPayload } from "jose";
@@ -86,6 +87,7 @@ import {
 import { FieldsService } from "../fields/fields.service";
 import { SearchService } from "../search/search.service";
 import { UsersService } from "../users/users.service";
+import { McpAgentBridgeService } from "./mcp-agent-bridge.service";
 import { toolGroupsFor } from "./mcp-scopes";
 
 const id = z.object({ id: z.string().min(1) });
@@ -94,6 +96,34 @@ const list = z.object({
 	page: z.number().int().min(1).default(1),
 	pageSize: z.number().int().min(1).max(100).default(25),
 });
+
+const READ_ONLY_ANNOTATIONS = {
+	readOnlyHint: true,
+	destructiveHint: false,
+	idempotentHint: true,
+	openWorldHint: false,
+} as const;
+
+const CREATE_ANNOTATIONS = {
+	readOnlyHint: false,
+	destructiveHint: false,
+	idempotentHint: false,
+	openWorldHint: false,
+} as const;
+
+const UPDATE_ANNOTATIONS = {
+	readOnlyHint: false,
+	destructiveHint: false,
+	idempotentHint: true,
+	openWorldHint: false,
+} as const;
+
+const DELETE_ANNOTATIONS = {
+	readOnlyHint: false,
+	destructiveHint: true,
+	idempotentHint: false,
+	openWorldHint: false,
+} as const;
 
 const companyBulkUpdateInput = companyBulkInput.extend({
 	data: companyUpdateInput,
@@ -151,6 +181,7 @@ export class McpService {
 		private readonly agents: AgentDefinitionsService,
 		private readonly runs: AgentRunsService,
 		private readonly conversations: ConversationsService,
+		private readonly agentBridge: McpAgentBridgeService,
 	) {}
 
 	async createServer(jwt: JWTPayload): Promise<McpServer> {
@@ -158,7 +189,10 @@ export class McpService {
 		const groups = toolGroupsFor(principal.scopes);
 		const server = new McpServer({ name: "Oximy CRM", version: "1.0.0" });
 
-		if (groups.read) this.registerReadTools(server, principal.userId);
+		if (groups.read) {
+			this.registerReadTools(server, principal.userId);
+			this.registerLinkedInTools(server);
+		}
 		if (groups.write) this.registerWriteTools(server, principal.userId);
 		if (groups.delete) this.registerDeleteTools(server);
 		if (groups.agents) {
@@ -195,11 +229,29 @@ export class McpService {
 
 	private registerReadTools(server: McpServer, userId: string): void {
 		server.registerTool(
+			"get_oximy_product_context",
+			{
+				description:
+					"Get Oximy's stable ICP, buyer, problem, objection, and pitch guidance for one product.",
+				inputSchema: schemas.oximy.productContextInput,
+				outputSchema: z.object({
+					result: schemas.oximy.productContextResult,
+				}),
+				annotations: {
+					readOnlyHint: true,
+					destructiveHint: false,
+					idempotentHint: true,
+					openWorldHint: false,
+				},
+			},
+			async (input) => result(await this.agentBridge.productContext(input)),
+		);
+		server.registerTool(
 			"search_crm",
 			{
 				description: "Search CRM companies, contacts, and deals by text.",
 				inputSchema: z.object({ q: z.string().min(2) }),
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async ({ q }) => result(await this.search.quick(q)),
 		);
@@ -208,7 +260,7 @@ export class McpService {
 			{
 				description: "List and search CRM companies.",
 				inputSchema: list,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async (input) =>
 				result(
@@ -223,7 +275,7 @@ export class McpService {
 				description:
 					"Get one CRM company with contacts, deals, fields, and activity context.",
 				inputSchema: id,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.companies.byId(id)),
 		);
@@ -232,7 +284,7 @@ export class McpService {
 			{
 				description: "List and search CRM contacts.",
 				inputSchema: list,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async (input) =>
 				result(
@@ -247,7 +299,7 @@ export class McpService {
 				description:
 					"Get one CRM contact with company, deals, fields, and relationship context.",
 				inputSchema: id,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.contacts.byId(id)),
 		);
@@ -257,7 +309,7 @@ export class McpService {
 				description:
 					"List CRM calls and messages. Results include participants and review status, but omit full transcripts.",
 				inputSchema: communicationListInput,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async (input) => result(await this.communications.list(input)),
 		);
@@ -267,7 +319,7 @@ export class McpService {
 				description:
 					"Search CRM calls, messages, participants, phone numbers, summaries, and transcripts.",
 				inputSchema: communicationListInput.extend({ q: z.string().min(1) }),
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async (input) => result(await this.communications.list(input)),
 		);
@@ -277,23 +329,19 @@ export class McpService {
 				description:
 					"Get one CRM communication with full recordings, summary, next steps, and transcript.",
 				inputSchema: id,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.communications.byId(id)),
 		);
 		server.registerTool(
 			"list_deals",
 			{
-				description: "List and search CRM deals.",
-				inputSchema: list,
-				annotations: { readOnlyHint: true },
+				description:
+					"List and search CRM deals. Filter by product, status, owner, stage, or closing window.",
+				inputSchema: dealListInput,
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
-			async (input) =>
-				result(
-					await this.deals.list(
-						dealListInput.parse({ ...input, sort: "", dir: "asc" }),
-					),
-				),
+			async (input) => result(await this.deals.list(input)),
 		);
 		server.registerTool(
 			"get_deal",
@@ -301,7 +349,7 @@ export class McpService {
 				description:
 					"Get one CRM deal with company, contacts, fields, and stage context.",
 				inputSchema: id,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.deals.byId(id)),
 		);
@@ -310,7 +358,7 @@ export class McpService {
 			{
 				description: "List CRM users available as record and deal owners.",
 				inputSchema: z.object({}),
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async () => result(await this.users.list()),
 		);
@@ -320,7 +368,7 @@ export class McpService {
 				description:
 					"List custom CRM fields for companies, contacts, or deals.",
 				inputSchema: fieldListInput,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async ({ entity, includeArchived }) =>
 				result(await this.fields.list(entity, includeArchived)),
@@ -330,7 +378,7 @@ export class McpService {
 			{
 				description: "Get one custom CRM field by entity and key.",
 				inputSchema: fieldByKeyInput,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async ({ entity, key }) => result(await this.fields.byKey(entity, key)),
 		);
@@ -340,7 +388,7 @@ export class McpService {
 				description:
 					"Read the filled-record coverage for one custom CRM field.",
 				inputSchema: fieldIdInput,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.fields.coverage(id)),
 		);
@@ -349,7 +397,7 @@ export class McpService {
 			{
 				description: "Read CRM dashboard totals and pipeline metrics.",
 				inputSchema: dashboardSummaryInput,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async (input) => result(await this.dashboard.summary(userId, input)),
 		);
@@ -358,7 +406,7 @@ export class McpService {
 			{
 				description: "Read the activity timeline for CRM records.",
 				inputSchema: timelineInput,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async (input) => result(await this.activities.timeline(input)),
 		);
@@ -367,7 +415,7 @@ export class McpService {
 			{
 				description: "Read activity counts for CRM records.",
 				inputSchema: timelineCountsInput,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async (input) => result(await this.activities.timelineCounts(input)),
 		);
@@ -376,9 +424,74 @@ export class McpService {
 			{
 				description: "List CRM tasks assigned to the current user.",
 				inputSchema: myTasksInput,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async (input) => result(await this.activities.myTasks(input, userId)),
+		);
+	}
+
+	private registerLinkedInTools(server: McpServer): void {
+		const annotations = {
+			readOnlyHint: true,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: true,
+		} as const;
+
+		server.registerTool(
+			"search_linkedin_people",
+			{
+				description:
+					"Search Oximy's LinkedIn index. Add one filter. Confirm the selected person before writing CRM data.",
+				inputSchema: schemas.oximy.linkedinPeopleSearchInput,
+				outputSchema: z.object({
+					result: schemas.oximy.linkedinPeopleSearchResult,
+				}),
+				annotations,
+			},
+			async (input) =>
+				result(await this.agentBridge.searchLinkedinPeople(input)),
+		);
+		server.registerTool(
+			"get_linkedin_person",
+			{
+				description:
+					"Get one LinkedIn profile by its selected source identifier. This tool does not match CRM identities.",
+				inputSchema: schemas.oximy.linkedinPersonInput,
+				outputSchema: z.object({
+					result: schemas.oximy.linkedinPersonResult,
+				}),
+				annotations,
+			},
+			async (input) => result(await this.agentBridge.getLinkedinPerson(input)),
+		);
+		server.registerTool(
+			"resolve_linkedin_company",
+			{
+				description:
+					"Resolve a company name into ranked LinkedIn company candidates. Confirm ambiguous candidates before continuing.",
+				inputSchema: schemas.oximy.linkedinCompanyResolutionInput,
+				outputSchema: z.object({
+					result: schemas.oximy.linkedinCompanyResolutionResult,
+				}),
+				annotations,
+			},
+			async (input) =>
+				result(await this.agentBridge.resolveLinkedinCompany(input)),
+		);
+		server.registerTool(
+			"list_linkedin_company_employees",
+			{
+				description:
+					"List current employees for one confirmed LinkedIn company identifier. Add a title filter when useful.",
+				inputSchema: schemas.oximy.linkedinCompanyEmployeesInput,
+				outputSchema: z.object({
+					result: schemas.oximy.linkedinCompanyEmployeesResult,
+				}),
+				annotations,
+			},
+			async (input) =>
+				result(await this.agentBridge.listLinkedinCompanyEmployees(input)),
 		);
 	}
 
@@ -386,9 +499,10 @@ export class McpService {
 		server.registerTool(
 			"create_company",
 			{
-				description: "Create one CRM company.",
+				description:
+					"Create one CRM company. Search CRM first. Confirm the company when names or domains are ambiguous.",
 				inputSchema: companyCreateInput,
-				annotations: { readOnlyHint: false, idempotentHint: false },
+				annotations: CREATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.companies.create(input)),
 		);
@@ -397,16 +511,17 @@ export class McpService {
 			{
 				description: "Update one CRM company.",
 				inputSchema: companyUpdateArgs,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ id, data }) => result(await this.companies.update(id, data)),
 		);
 		server.registerTool(
 			"create_contact",
 			{
-				description: "Create one CRM contact.",
+				description:
+					"Create one CRM contact. Search CRM first. Confirm ambiguous people and company associations.",
 				inputSchema: contactCreateInput,
-				annotations: { readOnlyHint: false, idempotentHint: false },
+				annotations: CREATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.contacts.create(input)),
 		);
@@ -416,7 +531,7 @@ export class McpService {
 				description:
 					"Attach an unresolved communication number to a contact, or ignore one communication.",
 				inputSchema: communicationResolveInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.communications.resolve(input)),
 		);
@@ -425,16 +540,17 @@ export class McpService {
 			{
 				description: "Update one CRM contact.",
 				inputSchema: contactUpdateArgs,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ id, data }) => result(await this.contacts.update(id, data)),
 		);
 		server.registerTool(
 			"create_deal",
 			{
-				description: "Create one CRM deal. Use list_users to choose its owner.",
+				description:
+					"Create one CRM deal. Search CRM first. Use list_users for its owner. Product is required.",
 				inputSchema: dealCreateInput,
-				annotations: { readOnlyHint: false, idempotentHint: false },
+				annotations: CREATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.deals.create(input)),
 		);
@@ -443,7 +559,7 @@ export class McpService {
 			{
 				description: "Update one CRM deal.",
 				inputSchema: dealUpdateArgs,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ id, data }) => result(await this.deals.update(id, data)),
 		);
@@ -452,7 +568,7 @@ export class McpService {
 			{
 				description: "Move one CRM deal to a new stage.",
 				inputSchema: setStageInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.deals.setStage(input, userId)),
 		);
@@ -461,7 +577,7 @@ export class McpService {
 			{
 				description: "Attach a company contact to one CRM deal.",
 				inputSchema: dealAttachContactInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.deals.attachContact(input)),
 		);
@@ -470,7 +586,7 @@ export class McpService {
 			{
 				description: "Apply the same changes to multiple CRM companies.",
 				inputSchema: companyBulkUpdateInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ ids, data }) =>
 				result(await runBulk(ids, (id) => this.companies.update(id, data))),
@@ -480,7 +596,7 @@ export class McpService {
 			{
 				description: "Assign multiple CRM companies to one owner.",
 				inputSchema: companyBulkOwnerInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.companies.bulkAssignOwner(input)),
 		);
@@ -489,7 +605,7 @@ export class McpService {
 			{
 				description: "Queue direct enrichment for multiple CRM companies.",
 				inputSchema: companyBulkInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ ids }) => result(await this.companies.bulkEnrich(ids)),
 		);
@@ -498,7 +614,7 @@ export class McpService {
 			{
 				description: "Queue direct company enrichment without full research.",
 				inputSchema: id,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.companies.enrich(id)),
 		);
@@ -507,7 +623,7 @@ export class McpService {
 			{
 				description: "Set or clear one company's primary contact.",
 				inputSchema: setPrimaryContactInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ companyId, contactId }) =>
 				result(await this.companies.setPrimaryContact(companyId, contactId)),
@@ -517,7 +633,7 @@ export class McpService {
 			{
 				description: "Apply the same changes to multiple CRM contacts.",
 				inputSchema: contactBulkUpdateInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ ids, data }) =>
 				result(await runBulk(ids, (id) => this.contacts.update(id, data))),
@@ -527,7 +643,7 @@ export class McpService {
 			{
 				description: "Assign multiple CRM contacts to one owner.",
 				inputSchema: contactBulkOwnerInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.contacts.bulkAssignOwner(input)),
 		);
@@ -536,7 +652,7 @@ export class McpService {
 			{
 				description: "Move multiple CRM contacts to one company or no company.",
 				inputSchema: contactBulkCompanyInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.contacts.bulkSetCompany(input)),
 		);
@@ -545,7 +661,7 @@ export class McpService {
 			{
 				description: "Queue enrichment for multiple CRM contacts.",
 				inputSchema: contactBulkInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ ids }) => result(await this.contacts.bulkEnrich(ids)),
 		);
@@ -554,7 +670,7 @@ export class McpService {
 			{
 				description: "Approve or reject one researched contact fact.",
 				inputSchema: factDecisionInput,
-				annotations: { readOnlyHint: false, idempotentHint: false },
+				annotations: CREATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.contacts.decideFact(input, userId)),
 		);
@@ -563,7 +679,7 @@ export class McpService {
 			{
 				description: "Detach one CRM contact from one deal.",
 				inputSchema: dealDetachContactInput,
-				annotations: { readOnlyHint: false, idempotentHint: false },
+				annotations: CREATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.deals.detachContact(input)),
 		);
@@ -572,7 +688,7 @@ export class McpService {
 			{
 				description: "Change one contact's role on one CRM deal.",
 				inputSchema: dealContactRoleInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.deals.setContactRole(input)),
 		);
@@ -581,7 +697,7 @@ export class McpService {
 			{
 				description: "Apply the same changes to multiple CRM deals.",
 				inputSchema: dealBulkUpdateInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ ids, data }) =>
 				result(await runBulk(ids, (id) => this.deals.update(id, data))),
@@ -591,7 +707,7 @@ export class McpService {
 			{
 				description: "Assign multiple CRM deals to one owner.",
 				inputSchema: dealBulkOwnerInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.deals.bulkAssignOwner(input)),
 		);
@@ -600,7 +716,7 @@ export class McpService {
 			{
 				description: "Move multiple CRM deals to one stage.",
 				inputSchema: dealBulkStageInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.deals.bulkSetStage(input, userId)),
 		);
@@ -610,7 +726,7 @@ export class McpService {
 				description:
 					"Create a CRM note, call, email, LinkedIn activity, meeting, or task.",
 				inputSchema: activityCreateInput,
-				annotations: { readOnlyHint: false, idempotentHint: false },
+				annotations: CREATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.activities.create(input, userId)),
 		);
@@ -619,7 +735,7 @@ export class McpService {
 			{
 				description: "Complete or reopen one CRM task.",
 				inputSchema: completeInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ id, completed }) =>
 				result(await this.activities.complete(id, completed)),
@@ -632,7 +748,7 @@ export class McpService {
 			{
 				description: "Delete one CRM activity.",
 				inputSchema: id,
-				annotations: { readOnlyHint: false, destructiveHint: true },
+				annotations: DELETE_ANNOTATIONS,
 			},
 			async ({ id: activityId }) =>
 				result(await this.activities.delete(activityId)),
@@ -642,7 +758,7 @@ export class McpService {
 			{
 				description: "Delete one CRM company.",
 				inputSchema: id,
-				annotations: { readOnlyHint: false, destructiveHint: true },
+				annotations: DELETE_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.companies.delete(id)),
 		);
@@ -651,7 +767,7 @@ export class McpService {
 			{
 				description: "Delete multiple CRM companies.",
 				inputSchema: companyBulkInput,
-				annotations: { readOnlyHint: false, destructiveHint: true },
+				annotations: DELETE_ANNOTATIONS,
 			},
 			async ({ ids }) => result(await this.companies.bulkDelete(ids)),
 		);
@@ -660,7 +776,7 @@ export class McpService {
 			{
 				description: "Delete one CRM contact.",
 				inputSchema: id,
-				annotations: { readOnlyHint: false, destructiveHint: true },
+				annotations: DELETE_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.contacts.delete(id)),
 		);
@@ -669,7 +785,7 @@ export class McpService {
 			{
 				description: "Delete multiple CRM contacts.",
 				inputSchema: contactBulkInput,
-				annotations: { readOnlyHint: false, destructiveHint: true },
+				annotations: DELETE_ANNOTATIONS,
 			},
 			async ({ ids }) => result(await this.contacts.bulkDelete(ids)),
 		);
@@ -678,7 +794,7 @@ export class McpService {
 			{
 				description: "Delete one CRM deal.",
 				inputSchema: id,
-				annotations: { readOnlyHint: false, destructiveHint: true },
+				annotations: DELETE_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.deals.delete(id)),
 		);
@@ -687,7 +803,7 @@ export class McpService {
 			{
 				description: "Delete multiple CRM deals.",
 				inputSchema: dealBulkInput,
-				annotations: { readOnlyHint: false, destructiveHint: true },
+				annotations: DELETE_ANNOTATIONS,
 			},
 			async ({ ids }) => result(await this.deals.bulkDelete(ids)),
 		);
@@ -703,7 +819,7 @@ export class McpService {
 			{
 				description: "Queue fresh company research through the Eve agent.",
 				inputSchema: id,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.companies.research(id, userId)),
 		);
@@ -712,7 +828,7 @@ export class McpService {
 			{
 				description: "Queue fresh contact research through the Eve agent.",
 				inputSchema: id,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.contacts.enrich(id)),
 		);
@@ -721,7 +837,7 @@ export class McpService {
 			{
 				description: "List custom CRM agents available to the current user.",
 				inputSchema: z.object({}),
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async () => result(await this.agents.list(userId)),
 		);
@@ -730,7 +846,7 @@ export class McpService {
 			{
 				description: "Start one deployed CRM agent through Eve.",
 				inputSchema: id,
-				annotations: { readOnlyHint: false, idempotentHint: false },
+				annotations: CREATE_ANNOTATIONS,
 			},
 			async ({ id }) =>
 				result(
@@ -742,7 +858,7 @@ export class McpService {
 			{
 				description: "Read one CRM agent's configuration.",
 				inputSchema: id,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.agents.byId(id, userId)),
 		);
@@ -751,7 +867,7 @@ export class McpService {
 			{
 				description: "Read one CRM agent's run history and results.",
 				inputSchema: agentHistoryInput,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async ({ id, limit }) => result(await this.runs.list(id, limit, userId)),
 		);
@@ -760,7 +876,7 @@ export class McpService {
 			{
 				description: "Read one CRM agent's activity history.",
 				inputSchema: agentHistoryInput,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async ({ id, limit }) =>
 				result(await this.runs.activity(id, limit, userId)),
@@ -770,7 +886,7 @@ export class McpService {
 			{
 				description: "Read one CRM agent's files.",
 				inputSchema: id,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.agents.files(id, userId)),
 		);
@@ -779,7 +895,7 @@ export class McpService {
 			{
 				description: "Start the guided builder workflow for a new CRM agent.",
 				inputSchema: agentCreationInput,
-				annotations: { readOnlyHint: false, idempotentHint: false },
+				annotations: CREATE_ANNOTATIONS,
 			},
 			async ({ clientRequestId, ...input }) =>
 				result(
@@ -800,7 +916,7 @@ export class McpService {
 				description:
 					"Read a guided agent creation workflow and its review state.",
 				inputSchema: id,
-				annotations: { readOnlyHint: true },
+				annotations: READ_ONLY_ANNOTATIONS,
 			},
 			async ({ id }) =>
 				result(await this.conversations.builderById(id, userId)),
@@ -810,7 +926,7 @@ export class McpService {
 			{
 				description: "Answer one question in a guided agent creation workflow.",
 				inputSchema: agentQuestionInput,
-				annotations: { readOnlyHint: false, idempotentHint: false },
+				annotations: CREATE_ANNOTATIONS,
 			},
 			async ({ clientRequestId, ...input }) =>
 				result(
@@ -828,7 +944,7 @@ export class McpService {
 			{
 				description: "Update one CRM agent's name and description.",
 				inputSchema: agentUpdateInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.agents.update(input, userId)),
 		);
@@ -837,7 +953,7 @@ export class McpService {
 			{
 				description: "Save one file in a CRM agent's draft version.",
 				inputSchema: agentSaveFileToolInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ clientRequestId, ...input }) =>
 				result(
@@ -852,7 +968,7 @@ export class McpService {
 			{
 				description: "Start a guided revision for one CRM agent.",
 				inputSchema: agentReviseToolInput,
-				annotations: { readOnlyHint: false, idempotentHint: false },
+				annotations: CREATE_ANNOTATIONS,
 			},
 			async ({ clientRequestId, ...input }) =>
 				result(
@@ -867,7 +983,7 @@ export class McpService {
 			{
 				description: "Deploy one reviewed CRM agent version.",
 				inputSchema: agentDeployToolInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ clientRequestId, ...input }) =>
 				result(
@@ -883,7 +999,7 @@ export class McpService {
 			{
 				description: "Retry one failed CRM agent run.",
 				inputSchema: agentRetryToolInput,
-				annotations: { readOnlyHint: false, idempotentHint: false },
+				annotations: CREATE_ANNOTATIONS,
 			},
 			async ({ clientRequestId, ...input }) =>
 				result(
@@ -898,7 +1014,7 @@ export class McpService {
 			{
 				description: "Cancel one queued or active CRM agent run.",
 				inputSchema: agentCancelRunInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.runs.cancelRun(input, userId)),
 		);
@@ -908,7 +1024,7 @@ export class McpService {
 				{
 					description: "Delete one archived CRM agent.",
 					inputSchema: id,
-					annotations: { readOnlyHint: false, destructiveHint: true },
+					annotations: DELETE_ANNOTATIONS,
 				},
 				async ({ id }) => result(await this.agents.remove(id, userId)),
 			);
@@ -921,7 +1037,7 @@ export class McpService {
 			{
 				description: "Pause one deployed CRM agent.",
 				inputSchema: id,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.agents.pause(id, userId)),
 		);
@@ -930,7 +1046,7 @@ export class McpService {
 			{
 				description: "Resume one paused CRM agent.",
 				inputSchema: id,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.agents.resume(id, userId)),
 		);
@@ -939,7 +1055,7 @@ export class McpService {
 			{
 				description: "Archive one CRM agent.",
 				inputSchema: id,
-				annotations: { readOnlyHint: false, destructiveHint: true },
+				annotations: DELETE_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.agents.archive(id, userId)),
 		);
@@ -948,7 +1064,7 @@ export class McpService {
 			{
 				description: "Restore one archived CRM agent.",
 				inputSchema: id,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.agents.restore(id, userId)),
 		);
@@ -960,7 +1076,7 @@ export class McpService {
 			{
 				description: "Create one CRM custom-field definition.",
 				inputSchema: fieldCreateInput,
-				annotations: { readOnlyHint: false, idempotentHint: false },
+				annotations: CREATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.fields.create(input)),
 		);
@@ -969,7 +1085,7 @@ export class McpService {
 			{
 				description: "Update one CRM custom-field definition.",
 				inputSchema: fieldUpdateArgs,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ id, data }) => result(await this.fields.update(id, data)),
 		);
@@ -978,7 +1094,7 @@ export class McpService {
 			{
 				description: "Set the display order for CRM custom fields.",
 				inputSchema: fieldReorderInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async (input) => result(await this.fields.reorder(input)),
 		);
@@ -987,7 +1103,7 @@ export class McpService {
 			{
 				description: "Archive one CRM custom-field definition.",
 				inputSchema: fieldIdInput,
-				annotations: { readOnlyHint: false, destructiveHint: true },
+				annotations: DELETE_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.fields.archive(id)),
 		);
@@ -996,7 +1112,7 @@ export class McpService {
 			{
 				description: "Restore one archived CRM custom-field definition.",
 				inputSchema: fieldIdInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.fields.restore(id)),
 		);
@@ -1005,7 +1121,7 @@ export class McpService {
 			{
 				description: "Queue an agent backfill for one CRM custom field.",
 				inputSchema: fieldIdInput,
-				annotations: { readOnlyHint: false, idempotentHint: true },
+				annotations: UPDATE_ANNOTATIONS,
 			},
 			async ({ id }) => result(await this.fields.backfill(id)),
 		);
@@ -1015,7 +1131,7 @@ export class McpService {
 				{
 					description: "Permanently delete one archived CRM custom field.",
 					inputSchema: fieldIdInput,
-					annotations: { readOnlyHint: false, destructiveHint: true },
+					annotations: DELETE_ANNOTATIONS,
 				},
 				async ({ id }) => result(await this.fields.delete(id)),
 			);
@@ -1024,14 +1140,18 @@ export class McpService {
 }
 
 function result(value: unknown) {
+	const text = JSON.stringify(value, (_, nested) =>
+		typeof nested === "bigint" ? nested.toString() : nested,
+	);
+	const structured = JSON.parse(text) as unknown;
+
 	return {
 		content: [
 			{
 				type: "text" as const,
-				text: JSON.stringify(value, (_, nested) =>
-					typeof nested === "bigint" ? nested.toString() : nested,
-				),
+				text,
 			},
 		],
+		structuredContent: { result: structured },
 	};
 }

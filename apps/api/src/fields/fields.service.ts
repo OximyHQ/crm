@@ -18,6 +18,7 @@ import {
 	usesOptions,
 	writeValues,
 } from "@crm/db/fields";
+import { OXIMY_PRODUCT_FIELD_KEY } from "@crm/validation";
 import {
 	BadRequestException,
 	ConflictException,
@@ -135,6 +136,7 @@ export class FieldsService {
 		});
 
 		if (!existing) throw new NotFoundException("That field does not exist.");
+		this.assertMutable(existing);
 
 		const type = data.type ?? existing.type;
 
@@ -241,6 +243,7 @@ export class FieldsService {
 	}
 
 	async archive(id: string): Promise<SerializedField> {
+		await this.assertMutableId(id);
 		try {
 			const definition = await this.db.fieldDefinition.update({
 				where: { id },
@@ -269,6 +272,7 @@ export class FieldsService {
 	}
 
 	async delete(id: string): Promise<{ id: string }> {
+		await this.assertMutableId(id);
 		try {
 			await this.db.fieldDefinition.delete({ where: { id } });
 		} catch (error) {
@@ -430,6 +434,29 @@ export class FieldsService {
 		}
 
 		return error;
+	}
+
+	private async assertMutableId(id: string): Promise<void> {
+		const definition = await this.db.fieldDefinition.findUnique({
+			where: { id },
+			select: { entity: true, key: true },
+		});
+		if (!definition) throw new NotFoundException("That field does not exist.");
+		this.assertMutable(definition);
+	}
+
+	private assertMutable(definition: {
+		entity: FieldEntity;
+		key: string;
+	}): void {
+		if (
+			definition.entity === "DEAL" &&
+			definition.key === OXIMY_PRODUCT_FIELD_KEY
+		) {
+			throw new BadRequestException(
+				"Oximy product options change through code and deployment.",
+			);
+		}
 	}
 }
 

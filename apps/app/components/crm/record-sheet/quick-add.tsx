@@ -12,6 +12,11 @@ import {
 	SelectValue,
 } from "@crm/ui/components/select";
 import { Spinner } from "@crm/ui/components/spinner";
+import {
+	OXIMY_PRODUCT_LABELS,
+	OXIMY_PRODUCTS,
+	type OximyProduct,
+} from "@crm/validation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { toast } from "sonner";
@@ -256,6 +261,7 @@ export function QuickAddDeal({
 	const [name, setName] = useState("");
 	const [amount, setAmount] = useState("");
 	const [closeDate, setCloseDate] = useState("");
+	const [product, setProduct] = useState<OximyProduct | "">("");
 
 	const nameId = useId();
 	const amountId = useId();
@@ -280,6 +286,10 @@ export function QuickAddDeal({
 			toast.error("Could not work out who should own this deal.");
 			return;
 		}
+		if (!product) {
+			toast.error("Choose a product.");
+			return;
+		}
 
 		let amountCents: number | null = null;
 		if (amount.trim() !== "") {
@@ -295,6 +305,7 @@ export function QuickAddDeal({
 			name,
 			companyId,
 			ownerId: owner,
+			product,
 			amountCents,
 			expectedCloseDate: closeDate || null,
 		});
@@ -304,7 +315,7 @@ export function QuickAddDeal({
 		<QuickAddForm
 			submitLabel="Create deal"
 			pending={create.isPending}
-			ready={name.trim() !== ""}
+			ready={name.trim() !== "" && product !== ""}
 			onCancel={onDone}
 			onSubmit={submit}
 		>
@@ -318,6 +329,24 @@ export function QuickAddDeal({
 					placeholder={`${companyName} — Oximy`}
 					autoComplete="off"
 				/>
+			</Field>
+			<Field>
+				<FieldLabel htmlFor="quick-add-deal-product">Product</FieldLabel>
+				<Select
+					value={product}
+					onValueChange={(value) => setProduct(value as OximyProduct)}
+				>
+					<SelectTrigger id="quick-add-deal-product">
+						<SelectValue placeholder="Choose a product" />
+					</SelectTrigger>
+					<SelectContent>
+						{OXIMY_PRODUCTS.map((value) => (
+							<SelectItem key={value} value={value}>
+								{OXIMY_PRODUCT_LABELS[value]}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
 			</Field>
 			<Field>
 				<FieldLabel htmlFor={amountId}>Amount</FieldLabel>

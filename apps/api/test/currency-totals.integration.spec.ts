@@ -121,6 +121,7 @@ describe("a total across currencies", () => {
 			name: `Domestic ${suffix}`,
 			companyId,
 			ownerId: userId,
+			product: "visibility",
 			amountCents: MILLION,
 			currency: "USD",
 		});
@@ -129,6 +130,7 @@ describe("a total across currencies", () => {
 			name: `Continental ${suffix}`,
 			companyId,
 			ownerId: userId,
+			product: "visibility",
 			amountCents: MILLION,
 			currency: "EUR",
 		});
@@ -155,6 +157,7 @@ describe("a total across currencies", () => {
 			name: `Alpine ${suffix}`,
 			companyId,
 			ownerId: userId,
+			product: "visibility",
 			amountCents: HALF_MILLION,
 			currency: "CHF",
 		});
@@ -237,6 +240,7 @@ describe("the deals list", () => {
 			owner: userId,
 			stage: "all",
 			closing: "all",
+			product: "all",
 		});
 
 		expect(list.reportingCurrency).toBe("USD");
@@ -263,6 +267,7 @@ describe("a converted figure knows which currency it is in", () => {
 			name: `Stale ${suffix}`,
 			companyId,
 			ownerId: userId,
+			product: "visibility",
 			amountCents: MILLION,
 			currency: "USD",
 		});
@@ -384,6 +389,7 @@ describe("a converted figure knows which currency it is in", () => {
 			name: `Frozen ${suffix}`,
 			companyId,
 			ownerId: userId,
+			product: "visibility",
 			amountCents: MILLION,
 			currency: "EUR",
 		});
@@ -477,6 +483,7 @@ describe("the dashboard only values what it can convert", () => {
 			name: `Valued win ${suffix}`,
 			companyId,
 			ownerId: analystId,
+			product: "visibility",
 			amountCents: 10_000,
 			currency: "USD",
 			stage: DealStage.CLOSED_WON,
@@ -498,6 +505,7 @@ describe("the dashboard only values what it can convert", () => {
 			name: `Valued open ${suffix}`,
 			companyId,
 			ownerId: analystId,
+			product: "visibility",
 			amountCents: 10_000,
 			currency: "USD",
 		});

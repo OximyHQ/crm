@@ -30,6 +30,11 @@ import {
 	SheetTrigger,
 } from "@crm/ui/components/sheet";
 import { Spinner } from "@crm/ui/components/spinner";
+import {
+	OXIMY_PRODUCT_LABELS,
+	OXIMY_PRODUCTS,
+	type OximyProduct,
+} from "@crm/validation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { parseAsBoolean, useQueryState } from "nuqs";
 import { type ComponentProps, Suspense, useId, useState } from "react";
@@ -72,6 +77,7 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 	const [company, setCompany] = useState(companyId ?? UNSET);
 	const [ownerId, setOwnerId] = useState(UNSET);
 	const [stage, setStage] = useState<string>("DEMO_BOOKED");
+	const [product, setProduct] = useState<OximyProduct | "">(UNSET);
 	const [amount, setAmount] = useState("");
 	const [currency, setCurrency] = useState("");
 	const [closeDate, setCloseDate] = useState("");
@@ -98,6 +104,7 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 				setAmount("");
 				setCurrency("");
 				setCloseDate("");
+				setProduct(UNSET);
 				openRecord({ kind: "deal", id: deal.id });
 			},
 			onError: (error) => toast.error(error.message),
@@ -105,7 +112,10 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 	);
 
 	const ready =
-		name.trim() !== "" && company !== UNSET && resolvedOwner !== UNSET;
+		name.trim() !== "" &&
+		company !== UNSET &&
+		resolvedOwner !== UNSET &&
+		product !== UNSET;
 
 	return (
 		<Sheet open={open} onOpenChange={(next) => setOpen(next || null)}>
@@ -125,12 +135,17 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 					className="flex-1 overflow-y-auto px-4"
 					onSubmit={(event) => {
 						event.preventDefault();
+						if (product === UNSET) {
+							toast.error("Choose a product.");
+							return;
+						}
 						const parsed = Number.parseFloat(amount);
 						create.mutate({
 							name,
 							companyId: company,
 							ownerId: resolvedOwner,
 							stage: stage as never,
+							product,
 							amountCents: Number.isFinite(parsed)
 								? Math.round(parsed * 100)
 								: null,
@@ -171,6 +186,25 @@ function CreateDealForm({ companyId }: { companyId?: string }) {
 									{(users.data ?? []).map((user) => (
 										<SelectItem key={user.id} value={user.id}>
 											{user.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</Field>
+
+						<Field>
+							<FieldLabel htmlFor="create-deal-product">Product</FieldLabel>
+							<Select
+								value={product}
+								onValueChange={(value) => setProduct(value as OximyProduct)}
+							>
+								<SelectTrigger id="create-deal-product">
+									<SelectValue placeholder="Choose a product" />
+								</SelectTrigger>
+								<SelectContent>
+									{OXIMY_PRODUCTS.map((value) => (
+										<SelectItem key={value} value={value}>
+											{OXIMY_PRODUCT_LABELS[value]}
 										</SelectItem>
 									))}
 								</SelectContent>
