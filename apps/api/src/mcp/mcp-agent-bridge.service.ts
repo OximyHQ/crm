@@ -6,14 +6,6 @@ import { MCP_AGENT_BRIDGE } from "./mcp-agent-bridge.config";
 
 @Injectable()
 export class McpAgentBridgeService {
-	productContext(input: z.infer<typeof schemas.oximy.productContextInput>) {
-		return this.post(
-			"/internal/crm/product-context",
-			input,
-			schemas.oximy.productContextResult,
-		);
-	}
-
 	searchLinkedinPeople(
 		input: z.infer<typeof schemas.oximy.linkedinPeopleSearchInput>,
 	) {

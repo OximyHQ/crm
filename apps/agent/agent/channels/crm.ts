@@ -36,7 +36,6 @@ import {
 	resolveLinkedinCompany,
 	searchLinkedinPeople,
 } from "../lib/linkedin-discovery";
-import { productContext } from "../lib/oximy-product-context";
 import { createQuoConnection, deleteQuoWebhook } from "../lib/quo-client";
 import { finishRun } from "../lib/run-runtime";
 import { attribute } from "../lib/session-purpose";
@@ -74,24 +73,6 @@ export function taskFromToken(token: string | undefined): string | null {
 
 export default defineChannel({
 	routes: [
-		POST("/internal/crm/product-context", async (request) => {
-			if (!authorised(request)) {
-				return new Response("Unauthorized", { status: 401 });
-			}
-
-			const parsed = schemas.oximy.productContextInput.safeParse(
-				await request.json().catch(() => null),
-			);
-			if (!parsed.success) {
-				return Response.json(
-					{ error: "The product is invalid." },
-					{ status: 400 },
-				);
-			}
-
-			return Response.json(await productContext(parsed.data.product));
-		}),
-
 		POST("/internal/crm/linkedin/search-people", async (request) => {
 			if (!authorised(request)) {
 				return new Response("Unauthorized", { status: 401 });

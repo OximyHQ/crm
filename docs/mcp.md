@@ -67,9 +67,11 @@ Read access provides these tools:
 
 Valid values are `visibility`, `relay`, `sidekick`, `unspecified`, and `all`.
 
-`get_oximy_product_context` returns the requested product section.
+`get_oximy_product_context` returns the CRM workspace profile.
 
-The section covers ICP, buyers, problems, objections, and pitch guidance.
+The profile contains Oximy's narrative, offering, buyers, and differentiation.
+
+Owners and administrators edit this profile under Settings → General.
 
 LinkedIn tools query the optional ClickHouse capability through the agent.
 

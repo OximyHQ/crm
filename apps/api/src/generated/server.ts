@@ -31,7 +31,7 @@ import { setAgentModelInput, setResearchKeyInput } from "../settings/settings.co
 import { slackChannelsInput, slackJoinChannelInput, slackCreateChannelInput } from "../slack/slack.contracts";
 import { ssoProviderListInput, registerSsoProviderInput, deleteSsoProviderInput } from "../sso/sso.contracts";
 import { trackingFlagInput, cookieLifetimeInput, addDomainInput, removeDomainInput, verifyInput, companyActivityInput, contactActivityInput } from "../tracking/tracking.contracts";
-import { memberListInput, updateWorkspaceInput, setMemberRoleInput } from "../workspace/workspace.contracts";
+import { memberListInput, updateWorkspaceInput, updateWorkspaceProfileInput, setMemberRoleInput } from "../workspace/workspace.contracts";
 import type { ActivitiesRouter } from "../activities/activities.router";
 import type { AgentsRouter } from "../agent/agents.router";
 import type { CommunicationsRouter } from "../communications/communications.router";
@@ -510,6 +510,9 @@ const appRouter = t.router({
     update: publicProcedure
       .input(updateWorkspaceInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<WorkspaceRouter["update"]>>),
+    updateProfile: publicProcedure
+      .input(updateWorkspaceProfileInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<WorkspaceRouter["updateProfile"]>>),
     setMemberRole: publicProcedure
       .input(setMemberRoleInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<WorkspaceRouter["setMemberRole"]>>)

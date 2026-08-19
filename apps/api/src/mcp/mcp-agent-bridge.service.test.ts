@@ -16,7 +16,9 @@ describe("MCP agent bridge", () => {
 		delete process.env.AGENT_BRIDGE_SECRET;
 		const bridge = new McpAgentBridgeService();
 
-		expect(await bridge.productContext({ product: "relay" })).toEqual({
+		expect(
+			await bridge.searchLinkedinPeople({ name: "Ada", limit: 25 }),
+		).toEqual({
 			ok: false,
 			configured: false,
 			reason: "The CRM agent bridge is not configured.",

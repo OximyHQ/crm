@@ -23,6 +23,7 @@ import {
 	InputGroupText,
 } from "@crm/ui/components/input-group";
 import { Spinner } from "@crm/ui/components/spinner";
+import { Textarea } from "@crm/ui/components/textarea";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
@@ -33,6 +34,15 @@ import { useWorkspaceSlug } from "@/lib/use-workspace-url";
 import { workspaceUrl } from "@/lib/workspace-url";
 
 export function WorkspaceForm() {
+	return (
+		<>
+			<WorkspaceIdentityForm />
+			<WorkspaceProfileForm />
+		</>
+	);
+}
+
+function WorkspaceIdentityForm() {
 	const trpc = useTRPC();
 	const cache = useCrmCache();
 	const router = useRouter();
@@ -151,9 +161,154 @@ export function WorkspaceForm() {
 				</form>
 
 				{canRename ? null : (
-					<p className="text-muted-foreground text-xs">
+					<FieldDescription>
 						Only an owner or an admin can change this.
-					</p>
+					</FieldDescription>
+				)}
+			</CardContent>
+		</Card>
+	);
+}
+
+type ProfileDraft = {
+	narrative: string;
+	sells: string;
+	sellsTo: string;
+	edge: string;
+};
+
+function WorkspaceProfileForm() {
+	const trpc = useTRPC();
+	const cache = useCrmCache();
+	const narrativeId = useId();
+	const sellsId = useId();
+	const sellsToId = useId();
+	const edgeId = useId();
+	const workspace = useQuery(trpc.workspace.get.queryOptions());
+	const [draft, setDraft] = useState<ProfileDraft | null>(null);
+
+	const save = useMutation(
+		trpc.workspace.updateProfile.mutationOptions({
+			onSuccess: async () => {
+				await cache.workspace();
+				setDraft(null);
+				toast.success("Company context saved.");
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+
+	if (!workspace.data) return null;
+
+	const { canRename, name, profile } = workspace.data;
+	const saved: ProfileDraft = {
+		narrative: profile?.narrative ?? "",
+		sells: profile?.sells ?? "",
+		sellsTo: profile?.sellsTo ?? "",
+		edge: profile?.edge ?? "",
+	};
+	const values = draft ?? saved;
+	const dirty =
+		values.narrative !== saved.narrative ||
+		values.sells !== saved.sells ||
+		values.sellsTo !== saved.sellsTo ||
+		values.edge !== saved.edge;
+	const edit = (patch: Partial<ProfileDraft>) =>
+		setDraft({ ...values, ...patch });
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle>Company context</CardTitle>
+				<CardDescription>
+					CRM agents and connected assistants use this profile to understand
+					your company.
+				</CardDescription>
+
+				<CardAction>
+					<Button
+						type="submit"
+						form="workspace-profile"
+						disabled={
+							!canRename ||
+							save.isPending ||
+							!dirty ||
+							values.narrative.trim().length < 40
+						}
+					>
+						{save.isPending ? <Spinner data-icon="inline-start" /> : null}
+						Save
+					</Button>
+				</CardAction>
+			</CardHeader>
+
+			<CardContent>
+				<form
+					id="workspace-profile"
+					onSubmit={(event) => {
+						event.preventDefault();
+						save.mutate(values);
+					}}
+				>
+					<FieldGroup>
+						<Field>
+							<FieldLabel htmlFor={narrativeId}>About {name}</FieldLabel>
+							<Textarea
+								id={narrativeId}
+								value={values.narrative}
+								onChange={(event) => edit({ narrative: event.target.value })}
+								placeholder={`What ${name} does and how it creates value.`}
+								disabled={!canRename || save.isPending}
+								maxLength={320}
+								required
+							/>
+							<FieldDescription>
+								Use two or three factual sentences. Minimum 40 characters.
+							</FieldDescription>
+						</Field>
+
+						<Field>
+							<FieldLabel htmlFor={sellsId}>We sell</FieldLabel>
+							<Input
+								id={sellsId}
+								value={values.sells}
+								onChange={(event) => edit({ sells: event.target.value })}
+								placeholder="Products and services"
+								disabled={!canRename || save.isPending}
+								maxLength={140}
+							/>
+						</Field>
+
+						<Field>
+							<FieldLabel htmlFor={sellsToId}>We sell to</FieldLabel>
+							<Input
+								id={sellsToId}
+								value={values.sellsTo}
+								onChange={(event) => edit({ sellsTo: event.target.value })}
+								placeholder="Ideal customers and buyers"
+								disabled={!canRename || save.isPending}
+								maxLength={140}
+							/>
+						</Field>
+
+						<Field>
+							<FieldLabel htmlFor={edgeId}>Why customers choose us</FieldLabel>
+							<Input
+								id={edgeId}
+								value={values.edge}
+								onChange={(event) => edit({ edge: event.target.value })}
+								placeholder="Differentiation from alternatives"
+								disabled={!canRename || save.isPending}
+								maxLength={140}
+							/>
+						</Field>
+					</FieldGroup>
+				</form>
+
+				{canRename ? null : (
+					<FieldDescription>
+						Only an owner or an admin can change this.
+					</FieldDescription>
 				)}
 			</CardContent>
 		</Card>

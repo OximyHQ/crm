@@ -14,7 +14,7 @@ export const oximyProduct = z.enum(OXIMY_PRODUCTS);
 
 export type OximyProduct = z.infer<typeof oximyProduct>;
 
-export const productContextInput = z.object({ product: oximyProduct });
+export const productContextInput = z.object({});
 
 export const linkedinPeopleSearchInput = z
 	.object({
@@ -83,16 +83,21 @@ export const unavailableAgentCapability = z.object({
 	reason: z.string(),
 });
 
-export const productContextResult = z.union([
-	z.object({
-		ok: z.literal(true),
-		configured: z.literal(true),
-		product: oximyProduct,
-		label: z.string(),
-		markdown: z.string(),
-	}),
-	unavailableAgentCapability,
-]);
+export const productContextResult = z.object({
+	ok: z.literal(true),
+	name: z.string(),
+	website: z.string().nullable(),
+	profile: z
+		.object({
+			narrative: z.string(),
+			sells: z.string().nullable(),
+			sellsTo: z.string().nullable(),
+			edge: z.string().nullable(),
+			sourceUrl: z.string().nullable(),
+			refreshedAt: z.string(),
+		})
+		.nullable(),
+});
 
 export const linkedinPersonSummary = z.object({
 	id: z.string(),

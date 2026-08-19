@@ -87,6 +87,7 @@ import {
 import { FieldsService } from "../fields/fields.service";
 import { SearchService } from "../search/search.service";
 import { UsersService } from "../users/users.service";
+import { WorkspaceService } from "../workspace/workspace.service";
 import { McpAgentBridgeService } from "./mcp-agent-bridge.service";
 import { toolGroupsFor } from "./mcp-scopes";
 
@@ -178,6 +179,7 @@ export class McpService {
 		private readonly fields: FieldsService,
 		private readonly users: UsersService,
 		private readonly search: SearchService,
+		private readonly workspace: WorkspaceService,
 		private readonly agents: AgentDefinitionsService,
 		private readonly runs: AgentRunsService,
 		private readonly conversations: ConversationsService,
@@ -232,7 +234,7 @@ export class McpService {
 			"get_oximy_product_context",
 			{
 				description:
-					"Get Oximy's stable ICP, buyer, problem, objection, and pitch guidance for one product.",
+					"Get the editable workspace profile that describes Oximy, what it sells, its buyers, and its differentiation.",
 				inputSchema: schemas.oximy.productContextInput,
 				outputSchema: z.object({
 					result: schemas.oximy.productContextResult,
@@ -244,7 +246,17 @@ export class McpService {
 					openWorldHint: false,
 				},
 			},
-			async (input) => result(await this.agentBridge.productContext(input)),
+			async () => {
+				const workspace = await this.workspace.get(userId);
+				return result(
+					schemas.oximy.productContextResult.parse({
+						ok: true,
+						name: workspace.name,
+						website: workspace.website,
+						profile: workspace.profile,
+					}),
+				);
+			},
 		);
 		server.registerTool(
 			"search_crm",

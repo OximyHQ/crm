@@ -169,6 +169,30 @@ describe("CRM MCP tools", () => {
 		]);
 	});
 
+	it("returns the editable workspace profile as product context", async () => {
+		const client = await mcpClient("crm:read", "owner", []);
+		const response = await client.callTool({
+			name: "get_oximy_product_context",
+			arguments: {},
+		});
+
+		expect(response.structuredContent).toEqual({
+			result: {
+				ok: true,
+				name: "Oximy",
+				website: "oximy.com",
+				profile: {
+					narrative: "Oximy provides company-owned AI infrastructure.",
+					sells: "AI infrastructure",
+					sellsTo: "Enterprise technology teams",
+					edge: "Company-owned controls",
+					sourceUrl: null,
+					refreshedAt: "2026-08-19T00:00:00.000Z",
+				},
+			},
+		});
+	});
+
 	it("publishes complete annotations and schemas for new tools", async () => {
 		const client = await mcpClient("crm:read", "owner", []);
 		const tools = await client.listTools();
@@ -316,6 +340,20 @@ async function mcpClient(
 					(_target, property) =>
 					async (...args: unknown[]) => {
 						calls.push({ service, method: String(property), args });
+						if (service === "workspace" && property === "get") {
+							return {
+								name: "Oximy",
+								website: "oximy.com",
+								profile: {
+									narrative: "Oximy provides company-owned AI infrastructure.",
+									sells: "AI infrastructure",
+									sellsTo: "Enterprise technology teams",
+									edge: "Company-owned controls",
+									sourceUrl: null,
+									refreshedAt: "2026-08-19T00:00:00.000Z",
+								},
+							};
+						}
 						return { id: "result" };
 					},
 			},
@@ -336,6 +374,7 @@ async function mcpClient(
 		dependency("fields") as never,
 		dependency("users") as never,
 		dependency("search") as never,
+		dependency("workspace") as never,
 		dependency("agents") as never,
 		dependency("runs") as never,
 		dependency("conversations") as never,
