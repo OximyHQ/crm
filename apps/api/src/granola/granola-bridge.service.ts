@@ -6,6 +6,7 @@ import { GRANOLA } from "./granola-config";
 
 const connectionReply = z.object({
 	folderId: z.string().regex(/^fol_[a-zA-Z0-9]{14}$/),
+	scope: z.enum(["personal", "public", "workspace"]),
 	webhookEndpointId: z.string().min(1),
 	webhookSecret: z.string().min(1),
 });

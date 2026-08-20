@@ -36,6 +36,7 @@ function serviceFor(role: WorkspaceRole) {
 			calls.push("connect");
 			return {
 				folderId: "fol_12345678901234",
+				scope: "personal" as const,
 				webhookEndpointId: "whe_12345678901234",
 				webhookSecret: "whsec_c2lnbmluZy1zZWNyZXQ=",
 			};
@@ -56,7 +57,6 @@ describe("Granola connection", () => {
 		const status = await service.connect(
 			{
 				apiKey: "grn_test_key",
-				scope: "personal",
 			},
 			"user-1",
 		);
@@ -79,7 +79,6 @@ describe("Granola connection", () => {
 			service.connect(
 				{
 					apiKey: "grn_test_key",
-					scope: "personal",
 				},
 				"user-1",
 			),
