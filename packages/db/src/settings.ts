@@ -127,7 +127,7 @@ export function maskKey(key: string): string {
 	return trimmed.length > 4 ? `••••${trimmed.slice(-4)}` : "••••";
 }
 
-export type GranolaScope = "personal" | "public";
+export type GranolaScope = "personal" | "public" | "workspace";
 
 export type GranolaConnection = {
 	apiKey: string;
@@ -304,5 +304,5 @@ export async function clearQuoConnection(db: Db): Promise<void> {
 }
 
 function isGranolaScope(value: unknown): value is GranolaScope {
-	return value === "personal" || value === "public";
+	return value === "personal" || value === "public" || value === "workspace";
 }

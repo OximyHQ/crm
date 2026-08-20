@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-export const scope = z.enum(["personal", "public"]);
-
 export const connectPayload = z.object({
 	apiKey: z.string().trim().min(8).max(500),
 	folderId: z
@@ -9,7 +7,6 @@ export const connectPayload = z.object({
 		.trim()
 		.regex(/^fol_[a-zA-Z0-9]{14}$/)
 		.optional(),
-	scope,
 	webhookUrl: z.url(),
 });
 

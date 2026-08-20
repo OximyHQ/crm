@@ -34,12 +34,14 @@ import { LocalDateTime } from "@/components/local-date-time";
 import { useCrmCache } from "@/lib/trpc/cache";
 import { useTRPC } from "@/lib/trpc/client";
 
+type GranolaScope = "personal" | "public" | "workspace";
+
 type GranolaStatus = {
 	connected: boolean;
 	canManage: boolean;
 	keyHint: string | null;
 	folderId: string | null;
-	scope: "personal" | "public" | null;
+	scope: GranolaScope | null;
 	connectedAt: string | null;
 	lastSyncedAt: string | null;
 	lastError: string | null;
@@ -54,6 +56,12 @@ const DATE_OPTIONS: Intl.DateTimeFormatOptions = {
 	year: "numeric",
 	hour: "numeric",
 	minute: "2-digit",
+};
+
+const SCOPE_LABELS: Record<GranolaScope, string> = {
+	personal: "My notes",
+	public: "Team space",
+	workspace: "Workspace API key",
 };
 
 export function GranolaConnection({
@@ -75,7 +83,6 @@ function ConnectGranola({ canManage }: { canManage: boolean }) {
 	const cache = useCrmCache();
 	const router = useRouter();
 	const [apiKey, setApiKey] = useState("");
-	const [scope, setScope] = useState<"personal" | "public">("personal");
 	const connect = useMutation(
 		trpc.granola.connect.mutationOptions({
 			onSuccess: async () => {
@@ -89,7 +96,7 @@ function ConnectGranola({ canManage }: { canManage: boolean }) {
 		}),
 	);
 	const action = useAsyncAction({
-		action: () => connect.mutateAsync({ apiKey, scope }),
+		action: () => connect.mutateAsync({ apiKey }),
 	});
 
 	return (
@@ -125,30 +132,10 @@ function ConnectGranola({ canManage }: { canManage: boolean }) {
 					</p>
 				</div>
 				<div className="flex flex-col gap-2">
-					<Label>API key scope</Label>
-					<Select
-						value={scope}
-						onValueChange={(value) => setScope(value as "personal" | "public")}
-						disabled={!canManage || action.pending}
-					>
-						<SelectTrigger className="w-full">
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="personal">Personal</SelectItem>
-							<SelectItem value="public">Public</SelectItem>
-						</SelectContent>
-					</Select>
-					<p className="text-muted-foreground text-xs leading-relaxed">
-						Use Personal for a private folder. Use Public for a
-						workspace-visible folder.
-					</p>
-				</div>
-				<div className="flex flex-col gap-2">
 					<Label>Folder</Label>
 					<p className="text-sm">Customer Calls</p>
 					<p className="text-muted-foreground text-xs leading-relaxed">
-						The CRM finds the exact folder name and includes its child folders.
+						The CRM confirms access and includes child folders.
 					</p>
 				</div>
 			</section>
@@ -247,7 +234,7 @@ function ConnectedGranola({
 				<StatusCell label="Folder ID" value={status.folderId ?? "Unknown"} />
 				<StatusCell
 					label="API access"
-					value={`${status.keyHint ?? "Stored key"} · ${status.scope ?? "unknown"}`}
+					value={`${status.keyHint ?? "Stored key"} · ${status.scope ? SCOPE_LABELS[status.scope] : "Unknown access"}`}
 				/>
 				<StatusCell
 					label="Last imported"

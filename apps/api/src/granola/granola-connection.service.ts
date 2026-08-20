@@ -89,7 +89,6 @@ export class GranolaConnectionService {
 		try {
 			await writeGranolaConnection(this.db, {
 				apiKey: input.apiKey,
-				scope: input.scope,
 				...registered,
 			});
 		} catch (error) {

@@ -8,6 +8,19 @@ const webhookEndpoint = z.object({
 	signing_secret: z.string().min(1),
 });
 
+const granolaFailure = z.object({
+	code: z.string().optional(),
+	message: z.string().optional(),
+	details: z
+		.array(
+			z.object({
+				field: z.string(),
+				issue: z.string(),
+			}),
+		)
+		.optional(),
+});
+
 const noteList = z.object({
 	notes: z.array(z.object({ id: z.string().min(1) })),
 	hasMore: z.boolean(),
@@ -29,40 +42,52 @@ export async function createGranolaWebhook(
 	input: {
 		apiKey: string;
 		folderId?: string;
-		scope: GranolaScope;
 		webhookUrl: string;
 	},
 	fetcher: typeof fetch = fetch,
 ): Promise<{
 	folderId: string;
+	scope: GranolaScope;
 	webhookEndpointId: string;
 	webhookSecret: string;
 }> {
 	const folderId =
 		input.folderId ??
 		(await findGranolaFolderId(input.apiKey, "Customer Calls", fetcher));
-	const data = await request(
-		"webhook-endpoints",
-		input.apiKey,
-		{
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({
-				url: input.webhookUrl,
-				scopes: [input.scope],
-				events: ["note.access_granted", "note.edited", "note.generated"],
-				folder_ids: [folderId],
-			}),
-		},
-		fetcher,
-	);
-	const parsed = webhookEndpoint.parse(data);
 
-	return {
-		folderId,
-		webhookEndpointId: parsed.id,
-		webhookSecret: parsed.signing_secret,
-	};
+	for (const scope of GRANOLA.webhook.scopeCandidates) {
+		try {
+			const data = await request(
+				"webhook-endpoints",
+				input.apiKey,
+				{
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						url: input.webhookUrl,
+						scopes: [scope],
+						events: ["note.access_granted", "note.edited", "note.generated"],
+						folder_ids: [folderId],
+					}),
+				},
+				fetcher,
+			);
+			const parsed = webhookEndpoint.parse(data);
+
+			return {
+				folderId,
+				scope,
+				webhookEndpointId: parsed.id,
+				webhookSecret: parsed.signing_secret,
+			};
+		} catch (error) {
+			if (!isScopeValidationError(error)) throw error;
+		}
+	}
+
+	throw new Error(
+		"Granola cannot connect the Customer Calls folder with this API key. Check the key access in Granola Settings.",
+	);
 }
 
 export async function findGranolaFolderId(
@@ -183,10 +208,61 @@ async function requestUrl(
 
 	if (!response.ok) {
 		const detail = await response.text().catch(() => "");
-		throw new Error(
-			`Granola returned ${response.status}${detail ? `: ${detail.slice(0, 200)}` : "."}`,
+		const failure = parseFailure(detail);
+		throw new GranolaRequestError(
+			response.status,
+			failure,
+			granolaRequestMessage(response.status, failure),
 		);
 	}
 
 	return response.json();
+}
+
+class GranolaRequestError extends Error {
+	constructor(
+		readonly status: number,
+		readonly failure: z.infer<typeof granolaFailure> | null,
+		message: string,
+	) {
+		super(message);
+	}
+}
+
+function parseFailure(detail: string): z.infer<typeof granolaFailure> | null {
+	if (!detail) return null;
+	let value: unknown;
+	try {
+		value = JSON.parse(detail);
+	} catch {
+		return null;
+	}
+	const parsed = granolaFailure.safeParse(value);
+	return parsed.success ? parsed.data : null;
+}
+
+function granolaRequestMessage(
+	status: number,
+	failure: z.infer<typeof granolaFailure> | null,
+): string {
+	if (status === 401) {
+		return "Granola rejected this API key. Create a new key in Granola Settings and try again.";
+	}
+	return failure?.message
+		? `Granola returned ${status}: ${failure.message}`
+		: `Granola returned ${status}.`;
+}
+
+function isScopeValidationError(error: unknown): boolean {
+	if (!(error instanceof GranolaRequestError) || error.status !== 400) {
+		return false;
+	}
+	const failure = error.failure;
+	if (failure?.code !== "VALIDATION_ERROR") return false;
+	return [
+		failure.message,
+		...(failure.details?.map((detail) => detail.issue) ?? []),
+	]
+		.filter((value): value is string => Boolean(value))
+		.some((value) => value.toLowerCase().includes("scope"));
 }
