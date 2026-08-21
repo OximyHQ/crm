@@ -20,8 +20,8 @@ export const granolaNote = z.object({
 			invitees: z.array(z.object({ email: z.string().email() })),
 			organiser: z.string().email().nullable(),
 			calendar_event_id: z.string().nullable(),
-			scheduled_start_time: z.iso.datetime(),
-			scheduled_end_time: z.iso.datetime(),
+			scheduled_start_time: z.iso.datetime({ offset: true }),
+			scheduled_end_time: z.iso.datetime({ offset: true }),
 		})
 		.nullable(),
 	attendees: z.array(granolaPerson),

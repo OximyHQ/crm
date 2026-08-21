@@ -102,8 +102,8 @@ describe("filing a Granola customer call", () => {
 				invitees: [{ email: "customer@example.test" }],
 				organiser: "owner@internal.test",
 				calendar_event_id: "calendar-event-1",
-				scheduled_start_time: START.toISOString(),
-				scheduled_end_time: "2026-08-12T15:00:00.000Z",
+				scheduled_start_time: "2026-08-12T10:00:00-04:00",
+				scheduled_end_time: "2026-08-12T11:00:00-04:00",
 			},
 			attendees: [
 				{ name: "Granola Owner", email: "owner@internal.test" },
