@@ -6,16 +6,17 @@ import {
 } from "./gtm-config";
 import { buildCoarseRankSql, matchTitle } from "./gtm-matcher";
 import { analyzeOrg, gtmOrganizeConfigured } from "./gtm-organize";
+import { type ExperienceRow, hydrateProfiles } from "./gtm-profile";
 import {
 	dedupeByName,
 	departedPerProfile,
 	type GtmPeopleResult,
 	nameCandidates,
-	normalizeEntityName,
 	type PersonProfile,
 	type ProfileExperience,
 	parseCrawlDate,
 } from "./gtm-report";
+import { resolveEntities } from "./gtm-resolve";
 import { gtmVerifyConfigured, verifyStillAtCompany } from "./gtm-verify";
 import {
 	linkedinClickHouseConfigured,
@@ -24,41 +25,11 @@ import {
 
 export { type GtmPeopleResult, gtmPeopleOutcome } from "./gtm-report";
 
-type EntityRow = {
-	company_id: string | number;
-	name: string;
-	name_lower: string;
-	employee_count: string | number;
-};
-
 type RosterRow = {
 	profile_id: string | number;
 	title: string;
 	company_name: string;
 	tier: string | number;
-};
-
-type ExperienceRow = {
-	title: string;
-	company_name: string;
-	company_id: string | number | null;
-	date_from: string;
-	date_to: string;
-	is_current: number | string;
-};
-
-type ProfileRow = {
-	id: string | number;
-	full_name: string;
-	headline: string;
-	profile_url: string;
-	city: string;
-	state: string;
-	country: string;
-	connections_count: string | number;
-	follower_count: string | number;
-	updated_at: string | null;
-	experience: ExperienceRow[];
 };
 
 const NONE: Omit<GtmPeopleResult, "reason"> = {
@@ -312,53 +283,6 @@ function toExperiences(rows: ExperienceRow[] | undefined): ProfileExperience[] {
 		}));
 }
 
-type EntityResolution = {
-	entities: { id: string; name: string }[];
-	fuzzy: boolean;
-};
-
-async function resolveEntities(
-	candidates: string[],
-): Promise<EntityResolution> {
-	const params: Record<string, unknown> = {
-		re_limit: GTM_PIPELINE.resolve.candidateLimit,
-	};
-	const probes = [
-		...new Set([...candidates, ...candidates.map(normalizeEntityName)]),
-	].filter(Boolean);
-	const likes = probes.map((probe, index) => {
-		const key = `re_name_${index}`;
-		params[key] = `%${escapeLike(probe)}%`;
-		return `name_lower LIKE {${key}:String}`;
-	});
-
-	const rows = await linkedinQuery<EntityRow>(
-		`SELECT company_id, name, name_lower, employee_count
-		 FROM gtm_companies FINAL
-		 WHERE ${likes.join(" OR ")}
-		 ORDER BY employee_count DESC, name ASC
-		 LIMIT {re_limit:UInt32}`,
-		params,
-	);
-
-	const wanted = new Set(candidates.map(normalizeEntityName).filter(Boolean));
-	const exact = rows.filter((row) => {
-		const normalized = normalizeEntityName(row.name_lower);
-		return normalized !== "" && wanted.has(normalized);
-	});
-	const picked = exact.length > 0 ? exact : rows.slice(0, 1);
-	return {
-		entities: picked
-			.slice(0, GTM_PIPELINE.resolve.entityLimit)
-			.map((row) => ({ id: String(row.company_id), name: row.name })),
-		fuzzy: exact.length === 0 && rows.length > 0,
-	};
-}
-
-function escapeLike(value: string): string {
-	return value.replace(/[\\%_]/g, (match) => `\\${match}`);
-}
-
 async function fetchRoster(entityIds: string[]): Promise<RosterRow[]> {
 	const rankExpr = buildCoarseRankSql("title");
 	return linkedinQuery<RosterRow>(
@@ -377,36 +301,12 @@ async function fetchRoster(entityIds: string[]): Promise<RosterRow[]> {
 			ro_rank: GTM_PIPELINE.roster.maxRank,
 		},
 		{
+			stage: "roster scan",
+			actionableErrors: true,
 			maxExecutionSeconds: GTM_PIPELINE.roster.maxExecutionSeconds,
 			retryTimeouts: false,
 		},
 	);
-}
-
-async function hydrateProfiles(
-	personIds: string[],
-): Promise<Map<string, ProfileRow>> {
-	if (personIds.length === 0) return new Map();
-
-	const rows = await linkedinQuery<ProfileRow>(
-		`SELECT
-			id, full_name,
-			COALESCE(headline, '') AS headline,
-			profile_url,
-			COALESCE(city, '') AS city,
-			COALESCE(state, '') AS state,
-			COALESCE(country, '') AS country,
-			COALESCE(connections_count, 0) AS connections_count,
-			COALESCE(follower_count, 0) AS follower_count,
-			toString(updated_at) AS updated_at,
-			arrayFilter(x -> x.deleted = 0, experience) AS experience
-		 FROM profiles
-		 WHERE id IN ({hy_ids:Array(Int64)}) AND is_parent = 1 AND deleted = 0
-		 LIMIT {hy_limit:UInt32}`,
-		{ hy_ids: personIds.map(Number), hy_limit: personIds.length },
-	);
-
-	return new Map(rows.map((row) => [String(row.id), row]));
 }
 
 type PersonUpsert = {

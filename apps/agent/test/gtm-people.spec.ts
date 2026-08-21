@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { hydrateProfiles } from "../agent/lib/gtm-profile";
 import {
 	dedupeByName,
 	departedPerProfile,
@@ -10,6 +11,34 @@ import {
 	parseOrgAnalysis,
 	parseVerifyAnswer,
 } from "../agent/lib/gtm-report";
+import { resolveEntities } from "../agent/lib/gtm-resolve";
+import {
+	type LinkedInQuery,
+	linkedinQueryWithClient,
+} from "../agent/lib/linkedin-clickhouse";
+
+type EntityRow = {
+	company_id: string | number;
+	name: string;
+	name_lower: string;
+	employee_count: string | number;
+};
+
+function entityQuery(...responses: EntityRow[][]): {
+	query: LinkedInQuery;
+	calls: { options: Parameters<LinkedInQuery>[2] }[];
+} {
+	const calls: { options: Parameters<LinkedInQuery>[2] }[] = [];
+	const query: LinkedInQuery = async <Row>(
+		_query,
+		_params,
+		options,
+	): Promise<Row[]> => {
+		calls.push({ options });
+		return (responses.shift() ?? []) as Row[];
+	};
+	return { query, calls };
+}
 
 function experience(
 	company: string,
@@ -92,6 +121,182 @@ describe("normalizeEntityName", () => {
 		);
 		expect(normalizeEntityName("BrowserStack, Inc.")).toBe("browserstack");
 		expect(normalizeEntityName("Acme (formerly Beta) Ltd")).toBe("acme");
+	});
+});
+
+describe("resolveEntities", () => {
+	it("preserves exact matches over larger fuzzy matches", async () => {
+		const { query, calls } = entityQuery([
+			{
+				company_id: "2",
+				name: "Acme Services",
+				name_lower: "acme services",
+				employee_count: 900,
+			},
+			{
+				company_id: "1",
+				name: "Acme, Inc.",
+				name_lower: "acme, inc.",
+				employee_count: 500,
+			},
+		]);
+
+		await expect(resolveEntities(["acme"], query)).resolves.toEqual({
+			entities: [{ id: "1", name: "Acme, Inc." }],
+			fuzzy: false,
+		});
+		expect(calls).toHaveLength(1);
+		expect(calls[0]?.options).toEqual({
+			stage: "company resolution",
+			actionableErrors: true,
+			maxExecutionSeconds: 60,
+			retryTimeouts: false,
+		});
+	});
+
+	it("preserves leading-article exact matches", async () => {
+		let calls = 0;
+		const query: LinkedInQuery = async <Row>(
+			_query,
+			params,
+		): Promise<Row[]> => {
+			calls += 1;
+			if (!Object.values(params).includes("%acme%")) return [];
+			return [
+				{
+					company_id: "1",
+					name: "The Acme",
+					name_lower: "the acme",
+					employee_count: 500,
+				},
+			] as Row[];
+		};
+
+		await expect(resolveEntities(["acme"], query)).resolves.toEqual({
+			entities: [{ id: "1", name: "The Acme" }],
+			fuzzy: false,
+		});
+		expect(calls).toBe(1);
+	});
+
+	it("preserves the fuzzy fallback", async () => {
+		const { query, calls } = entityQuery([
+			{
+				company_id: "3",
+				name: "Acme Research",
+				name_lower: "acme research",
+				employee_count: 300,
+			},
+		]);
+
+		await expect(resolveEntities(["acme"], query)).resolves.toEqual({
+			entities: [{ id: "3", name: "Acme Research" }],
+			fuzzy: true,
+		});
+		expect(calls).toHaveLength(1);
+	});
+});
+
+describe("linkedinQueryWithClient", () => {
+	it("uses one continuous timeout attempt and names the failed stage", async () => {
+		let attempts = 0;
+		const clickhouse = {
+			query: async () => {
+				attempts += 1;
+				throw new Error(
+					"Timeout exceeded: elapsed 60001 ms, maximum: 60000 ms",
+				);
+			},
+		} as unknown as Parameters<typeof linkedinQueryWithClient>[0];
+
+		await expect(
+			linkedinQueryWithClient(
+				clickhouse,
+				"SELECT 1",
+				{},
+				{
+					stage: "profile hydration",
+					actionableErrors: true,
+					maxExecutionSeconds: 60,
+					retryTimeouts: false,
+				},
+			),
+		).rejects.toThrow("LinkedIn profile hydration timed out after 60 seconds.");
+		expect(attempts).toBe(1);
+	});
+
+	it("keeps a safe ClickHouse code in an actionable GTM error", async () => {
+		const clickhouse = {
+			query: async () => {
+				throw Object.assign(new Error("Unsafe query detail"), { code: 47 });
+			},
+		} as unknown as Parameters<typeof linkedinQueryWithClient>[0];
+
+		await expect(
+			linkedinQueryWithClient(
+				clickhouse,
+				"SELECT 1",
+				{},
+				{
+					stage: "profile hydration",
+					actionableErrors: true,
+					retryTimeouts: false,
+				},
+			),
+		).rejects.toThrow(
+			"LinkedIn profile hydration failed with ClickHouse code 47.",
+		);
+	});
+
+	it("preserves the original error contract for discovery queries", async () => {
+		const failure = Object.assign(new Error("Existing discovery detail"), {
+			code: 47,
+		});
+		const clickhouse = {
+			query: async () => {
+				throw failure;
+			},
+		} as unknown as Parameters<typeof linkedinQueryWithClient>[0];
+
+		await expect(
+			linkedinQueryWithClient(
+				clickhouse,
+				"SELECT 1",
+				{},
+				{ stage: "discovery query", retryTimeouts: false },
+			),
+		).rejects.toBe(failure);
+	});
+});
+
+describe("hydrateProfiles", () => {
+	it("uses one continuous 60-second query for every requested profile", async () => {
+		const calls: { options: Parameters<LinkedInQuery>[2] }[] = [];
+		const query: LinkedInQuery = async <Row>(
+			_query,
+			_params,
+			options,
+		): Promise<Row[]> => {
+			calls.push({ options });
+			return [
+				{ id: 1, full_name: "Ada Lovelace", experience: [] },
+				{ id: 2, full_name: "Grace Hopper", experience: [] },
+			] as Row[];
+		};
+
+		const profiles = await hydrateProfiles(["1", "2"], query);
+
+		expect([...profiles.keys()]).toEqual(["1", "2"]);
+		expect(calls).toEqual([
+			{
+				options: {
+					stage: "profile hydration",
+					actionableErrors: true,
+					maxExecutionSeconds: 60,
+					retryTimeouts: false,
+				},
+			},
+		]);
 	});
 });
 

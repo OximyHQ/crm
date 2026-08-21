@@ -21,7 +21,8 @@ export type LinkedinDiscoveryDependencies = {
 
 const LIVE_LINKEDIN_DISCOVERY: LinkedinDiscoveryDependencies = {
 	configured: linkedinClickHouseConfigured,
-	query: linkedinQuery,
+	query: (query, queryParams) =>
+		linkedinQuery(query, queryParams, { stage: "discovery query" }),
 };
 
 const summaryRow = z.object({

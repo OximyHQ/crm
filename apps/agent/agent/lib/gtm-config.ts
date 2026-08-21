@@ -78,10 +78,14 @@ export const GTM_FALLBACK_MAX_RANK = 4;
 export const GTM_LEADER_MAX_RANK = 4;
 
 export const GTM_PIPELINE = {
-	resolve: { candidateLimit: 100, entityLimit: 10 },
+	resolve: {
+		candidateLimit: 100,
+		entityLimit: 10,
+		maxExecutionSeconds: 60,
+	},
 	roster: { coarseLimit: 3000, maxRank: 6, maxExecutionSeconds: 60 },
 	keep: { limit: 300 },
-	profile: { experienceLimit: 15 },
+	profile: { experienceLimit: 15, maxExecutionSeconds: 60 },
 	save: { updateChunk: 25 },
 	verify: {
 		cap: 40,
