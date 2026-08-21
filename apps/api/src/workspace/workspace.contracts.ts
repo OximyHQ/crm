@@ -1,5 +1,5 @@
 import { WORKSPACE_ROLES } from "@crm/auth";
-import { MAX_LINE, MAX_NARRATIVE, MAX_SLUG } from "@crm/db/workspace";
+import { MAX_SLUG } from "@crm/db/workspace";
 import { z } from "zod";
 import { listInput } from "../trpc/list-input";
 
@@ -22,10 +22,10 @@ export const updateWorkspaceInput = z.object({
 });
 
 export const updateWorkspaceProfileInput = z.object({
-	narrative: z.string().trim().min(40).max(MAX_NARRATIVE),
-	sells: z.string().trim().max(MAX_LINE),
-	sellsTo: z.string().trim().max(MAX_LINE),
-	edge: z.string().trim().max(MAX_LINE),
+	narrative: z.string().trim().min(40),
+	sells: z.string().trim(),
+	sellsTo: z.string().trim(),
+	edge: z.string().trim(),
 });
 
 export const setMemberRoleInput = z.object({

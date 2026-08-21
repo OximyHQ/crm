@@ -1,17 +1,12 @@
 import { db } from "@crm/db";
-import {
-	MAX_LINE,
-	MAX_NARRATIVE,
-	writeWorkspaceProfile,
-} from "@crm/db/workspace";
+import { writeWorkspaceProfile } from "@crm/db/workspace";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { currentFocus } from "../lib/focus";
 import { assertResearchPurpose } from "../lib/session-purpose";
 import { identity } from "../lib/workspace";
 
-const line = (what: string) =>
-	z.string().max(MAX_LINE).optional().describe(what);
+const line = (what: string) => z.string().optional().describe(what);
 
 export default defineTool({
 	description:
@@ -19,7 +14,6 @@ export default defineTool({
 	inputSchema: z.object({
 		narrative: z
 			.string()
-			.max(MAX_NARRATIVE)
 			.describe(
 				"Two or three sentences a new colleague would need on their first day: " +
 					"what this company does and how it makes money. Plain, factual, no " +

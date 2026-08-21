@@ -1,7 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import {
-	MAX_LINE,
-	MAX_NARRATIVE,
 	profileOf,
 	trimSections,
 	type WorkspaceProfile,
@@ -141,19 +139,14 @@ describe("the website has to be somewhere a fetch can go", () => {
 	});
 });
 
-describe("the profile cannot grow", () => {
-	it("clamps a line that runs on", () => {
-		const { sells } = trimSections({ sells: "a".repeat(MAX_LINE + 50) });
+describe("profile text", () => {
+	it("preserves long context", () => {
+		const sells = "a".repeat(500);
 
-		expect(sells).toHaveLength(MAX_LINE);
-		expect(sells?.endsWith("…")).toBe(true);
+		expect(trimSections({ sells }).sells).toBe(sells);
 	});
 
 	it("drops what the site did not say", () => {
 		expect(trimSections({ sells: "  ", sellsTo: undefined })).toEqual({});
-	});
-
-	it("keeps the narrative shorter than a paragraph", () => {
-		expect(MAX_NARRATIVE).toBeLessThanOrEqual(400);
 	});
 });

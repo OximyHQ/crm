@@ -37,10 +37,6 @@ export function workspaceSlug(name: string): string {
 	return RESERVED_SLUGS.includes(base) ? `${base}-crm` : base;
 }
 
-export const MAX_NARRATIVE = 320;
-
-export const MAX_LINE = 140;
-
 export function isOnboarded(metadata: string | null): boolean {
 	return typeof readMetadata(metadata).onboardedAt === "string";
 }
@@ -166,7 +162,7 @@ export async function writeWorkspaceProfile(
 ): Promise<WorkspaceProfile> {
 	const fields = {
 		website: input.website,
-		narrative: clamp(input.narrative, MAX_NARRATIVE) ?? "",
+		narrative: trimmedText(input.narrative) ?? "",
 		sections: trimSections(input.sections),
 		sourceUrl: input.sourceUrl ?? null,
 		sessionId: input.sessionId ?? null,
@@ -194,23 +190,23 @@ export function trimSections(
 ): WorkspaceProfileSections {
 	const trimmed: WorkspaceProfileSections = {};
 
-	const sells = clamp(sections.sells, MAX_LINE);
+	const sells = trimmedText(sections.sells);
 	if (sells) trimmed.sells = sells;
 
-	const sellsTo = clamp(sections.sellsTo, MAX_LINE);
+	const sellsTo = trimmedText(sections.sellsTo);
 	if (sellsTo) trimmed.sellsTo = sellsTo;
 
-	const edge = clamp(sections.edge, MAX_LINE);
+	const edge = trimmedText(sections.edge);
 	if (edge) trimmed.edge = edge;
 
 	return trimmed;
 }
 
-function clamp(value: string | undefined, max: number): string | undefined {
+function trimmedText(value: string | undefined): string | undefined {
 	const trimmed = value?.trim();
 	if (!trimmed) return undefined;
 
-	return trimmed.length <= max ? trimmed : `${trimmed.slice(0, max - 1)}…`;
+	return trimmed;
 }
 
 function readSections(value: unknown): WorkspaceProfileSections {
