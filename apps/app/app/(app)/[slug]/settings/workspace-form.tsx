@@ -259,7 +259,6 @@ function WorkspaceProfileForm() {
 								onChange={(event) => edit({ narrative: event.target.value })}
 								placeholder={`What ${name} does and how it creates value.`}
 								disabled={!canRename || save.isPending}
-								maxLength={320}
 								required
 							/>
 							<FieldDescription>
@@ -275,7 +274,6 @@ function WorkspaceProfileForm() {
 								onChange={(event) => edit({ sells: event.target.value })}
 								placeholder="Products and services"
 								disabled={!canRename || save.isPending}
-								maxLength={140}
 							/>
 						</Field>
 
@@ -287,7 +285,6 @@ function WorkspaceProfileForm() {
 								onChange={(event) => edit({ sellsTo: event.target.value })}
 								placeholder="Ideal customers and buyers"
 								disabled={!canRename || save.isPending}
-								maxLength={140}
 							/>
 						</Field>
 
@@ -299,7 +296,6 @@ function WorkspaceProfileForm() {
 								onChange={(event) => edit({ edge: event.target.value })}
 								placeholder="Differentiation from alternatives"
 								disabled={!canRename || save.isPending}
-								maxLength={140}
 							/>
 						</Field>
 					</FieldGroup>

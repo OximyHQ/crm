@@ -264,8 +264,8 @@ which the audit hook files events against nothing.
 `composeClosing()` puts a **Who we are** block before the capabilities in every
 preamble; `lib/workspace.ts` is the only renderer.
 
-- **Tiny, enforced by the write path** — `MAX_NARRATIVE` (320) and `MAX_LINE` in
-  `@crm/db/workspace`. It is prompt-cached and precedes every question.
+- **Focused by its writing guidance** — it is prompt-cached and precedes every
+  question.
 - **It says what the context is for** — fit, competitor, partner, or nothing — and
   **never a pitch**, or the model sells our own product back to us.
 - **No profile still gets the name line**, plus *do not guess at what we sell*.
