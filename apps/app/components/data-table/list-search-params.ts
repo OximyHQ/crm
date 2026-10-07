@@ -7,6 +7,7 @@ import {
 	parseAsString,
 	parseAsStringLiteral,
 } from "nuqs/server";
+import { LIST_VIEW } from "./list-view";
 
 const SORT_DIRECTIONS = ["asc", "desc"] as const;
 
@@ -46,6 +47,7 @@ export type ListTableConfig<TTab extends string, TFacet extends string> = {
 	tabId?: TTab;
 	facetIds?: readonly TFacet[];
 	facetDefaults?: Partial<Record<TFacet, string>>;
+	view?: string;
 };
 
 export type ListSearchParams<TTab extends string, TFacet extends string> = {
@@ -55,6 +57,7 @@ export type ListSearchParams<TTab extends string, TFacet extends string> = {
 		pageSize: number;
 	};
 	parsers: ListParsers<TTab | TFacet>;
+	viewKeys: readonly string[];
 	load: LoaderFunction<ListParsers<TTab | TFacet>>;
 	toInput: (
 		values: ListSearchValues<TTab | TFacet>,
@@ -91,6 +94,8 @@ export function createListSearchParams<
 
 	const keys = [...(tabId ? [tabId] : []), ...facetIds] as (TTab | TFacet)[];
 
+	const viewKeys = [...keys, "sort", "dir", LIST_VIEW.columnsKey];
+
 	const defaults = Object.fromEntries(
 		Object.entries(parsers).map(([key, parser]) => [key, parser.defaultValue]),
 	) as ListSearchValues<TTab | TFacet>;
@@ -114,6 +119,7 @@ export function createListSearchParams<
 	return {
 		config: { ...config, defaultSort, defaultDir, pageSize },
 		parsers,
+		viewKeys,
 		load: createLoader(parsers),
 		toInput,
 		defaultInput: () => toInput(defaults),

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { restoreListView } from "@/components/data-table/restore-list-view";
 import {
 	PageShell,
 	PageShellActions,
@@ -13,6 +14,7 @@ import {
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { workspaceUrl } from "@/lib/workspace-url";
 import { CreateDealSheet } from "./create-deal-sheet";
 import { dealsSearchParams } from "./deals-search-params";
 import { DealsTable } from "./deals-table";
@@ -21,9 +23,16 @@ export const metadata: Metadata = {
 	title: "Deals",
 };
 
-export default function DealsPage({
+export default async function DealsPage({
+	params,
 	searchParams,
 }: PageProps<"/[slug]/deals">) {
+	const { slug } = await params;
+	await restoreListView(dealsSearchParams, {
+		path: workspaceUrl(slug, "/deals"),
+		searchParams,
+	});
+
 	return (
 		<PageShell className="min-h-0">
 			<PageShellHeader>
