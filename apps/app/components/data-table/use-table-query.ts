@@ -7,6 +7,7 @@ import type {
 	ListSearchParams,
 	ListSearchValues,
 } from "./list-search-params";
+import { rememberListView } from "./list-view";
 
 export type TableQuery<TKey extends string> = {
 	query: TableQueryState;
@@ -16,10 +17,18 @@ export type TableQuery<TKey extends string> = {
 export function useTableQuery<TTab extends string, TFacet extends string>(
 	searchParams: ListSearchParams<TTab, TFacet>,
 ): TableQuery<TTab | TFacet> {
-	const { parsers, config, toInput } = searchParams;
-	const { defaultDir, pageSize, tabId, facetIds, facetDefaults } = config;
+	const { parsers, config, toInput, viewKeys } = searchParams;
+	const { defaultDir, pageSize, tabId, facetIds, facetDefaults, view } = config;
 
-	const [state, setState] = useQueryStates(parsers);
+	const [state, setQueryState] = useQueryStates(parsers);
+	const onViewChange = view
+		? (params: URLSearchParams) => rememberListView(view, viewKeys, params)
+		: undefined;
+	const setState: typeof setQueryState = (update, options) => {
+		const result = setQueryState(update, options);
+		if (onViewChange) void result.then(onViewChange);
+		return result;
+	};
 	const values = state as ListSearchValues<TTab | TFacet>;
 
 	const page = values.page > 0 ? values.page : 1;
@@ -39,6 +48,7 @@ export function useTableQuery<TTab extends string, TFacet extends string>(
 		tab,
 		tabId,
 		filters,
+		onViewChange,
 		toggleSort: (id) =>
 			setState((prev) =>
 				prev.sort === id

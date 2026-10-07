@@ -8,6 +8,7 @@ export type TableQueryState = {
 	tab: string;
 	tabId?: string;
 	filters: Record<string, string>;
+	onViewChange?: (params: URLSearchParams) => void;
 	toggleSort: (id: string) => void;
 	setSort: (id: string) => void;
 	setDir: (dir: SortDirection) => void;

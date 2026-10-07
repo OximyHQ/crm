@@ -549,12 +549,12 @@ export function DataTable<TRow, TSub = unknown>({
 											key={column.id}
 											checked={!hidden.includes(column.id)}
 											onCheckedChange={(checked) =>
-												setHidden((prev) => {
+												void setHidden((prev) => {
 													const set = new Set(prev);
 													if (checked) set.delete(column.id);
 													else set.add(column.id);
 													return [...set];
-												})
+												}).then(query.onViewChange)
 											}
 										>
 											{columnLabel(column)}

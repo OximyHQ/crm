@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { restoreListView } from "@/components/data-table/restore-list-view";
 import {
 	PageShell,
 	PageShellActions,
@@ -13,6 +14,7 @@ import {
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { workspaceUrl } from "@/lib/workspace-url";
 import { companiesSearchParams } from "./companies-search-params";
 import { CompaniesTable } from "./companies-table";
 import { CreateCompanySheet } from "./create-company-sheet";
@@ -21,9 +23,16 @@ export const metadata: Metadata = {
 	title: "Companies",
 };
 
-export default function CompaniesPage({
+export default async function CompaniesPage({
+	params,
 	searchParams,
 }: PageProps<"/[slug]/companies">) {
+	const { slug } = await params;
+	await restoreListView(companiesSearchParams, {
+		path: workspaceUrl(slug, "/companies"),
+		searchParams,
+	});
+
 	return (
 		<PageShell className="min-h-0">
 			<PageShellHeader>

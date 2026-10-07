@@ -1,6 +1,7 @@
 import { createListSearchParams } from "@/components/data-table/list-search-params";
 
 export const contactsSearchParams = createListSearchParams({
+	view: "contacts",
 	defaultSort: "createdAt",
 	defaultDir: "desc",
 	facetIds: ["owner", "company", "source"] as const,

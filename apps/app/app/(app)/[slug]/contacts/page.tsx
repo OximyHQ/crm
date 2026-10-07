@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { restoreListView } from "@/components/data-table/restore-list-view";
 import {
 	PageShell,
 	PageShellActions,
@@ -13,6 +14,7 @@ import {
 import { requireSession } from "@/lib/session";
 import { HydrateClient } from "@/lib/trpc/hydrate";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { workspaceUrl } from "@/lib/workspace-url";
 import { contactsSearchParams } from "./contacts-search-params";
 import { ContactsTable } from "./contacts-table";
 import { CreateContactSheet } from "./create-contact-sheet";
@@ -21,9 +23,16 @@ export const metadata: Metadata = {
 	title: "Contacts",
 };
 
-export default function ContactsPage({
+export default async function ContactsPage({
+	params,
 	searchParams,
 }: PageProps<"/[slug]/contacts">) {
+	const { slug } = await params;
+	await restoreListView(contactsSearchParams, {
+		path: workspaceUrl(slug, "/contacts"),
+		searchParams,
+	});
+
 	return (
 		<PageShell className="min-h-0">
 			<PageShellHeader>
